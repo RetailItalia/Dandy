@@ -474,6 +474,52 @@ namespace Dandy.Tests
         }
 
         [Fact]
+        public async Task GetAllPagedAsync()
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<User>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new User { Name = "User " + i, Age = i });
+
+            using (var connection = GetOpenConnection())
+            {
+                await connection.DeleteAllAsync<User>().ConfigureAwait(false);
+
+                var total = await connection.InsertAsync(users).ConfigureAwait(false);
+                Assert.Equal(total, numberOfEntities);
+
+                var paginatedUsers = await connection.GetAllAsync<User>(page: 1, pageSize: 2);
+
+                Assert.Equal(2, paginatedUsers.Count());
+                Assert.Contains(paginatedUsers, u => u.Name == "User 0");
+                Assert.Contains(paginatedUsers, u => u.Name == "User 1");
+                Assert.DoesNotContain(paginatedUsers, u => u.Name == "User 2");
+            }
+        }
+
+
+        [Fact]
+        public async Task GetAllPagedInvalidPageParametersAsync()
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<User>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new User { Name = "User " + i, Age = i });
+
+            using (var connection = GetOpenConnection())
+            {
+                await connection.DeleteAllAsync<User>().ConfigureAwait(false);
+
+                var total = await connection.InsertAsync(users).ConfigureAwait(false);
+                Assert.Equal(total, numberOfEntities);
+
+                await Assert.ThrowsAnyAsync<Exception>(async () => await connection.GetAllAsync<User>(page: 1, pageSize: -2));
+            }
+        }
+
+        [Fact]
         public async Task InsertFieldWithReservedNameAsync()
         {
             using (var connection = GetOpenConnection())

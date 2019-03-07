@@ -103,14 +103,33 @@ namespace Dandy
         /// <param name="connection">Open SqlConnection</param>
         /// <param name="transaction">The transaction to run under, null (the default) if none</param>
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// <param name="page">[At the moment it only works in DB2] page number (from 1 to ...)</param>
+        /// <param name="pageSize">[At the moment it only works in DB2] page size (from 1 to ...)</param>
         /// <returns>Entity of T</returns>
-        public static Task<IEnumerable<T>> GetAllAsync<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        public async static Task<IEnumerable<T>> GetAllAsync<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null, int? page = null, int? pageSize = null) where T : class
+        {
+            System.Diagnostics.Contracts.Contract.Requires((!pageSize.HasValue) || pageSize.HasValue && pageSize >= 0, "pageSize must be a number >= 0");
+            var type = typeof(T);
+            var sql = BuildSqlGetAll<T>(connection);
+
+            object parameters = null;
+            if (pageSize.HasValue)
+            {
+                parameters = GetPaginationParameters(pageSize, page);
+                sql = AppendSqlWithPagination(connection, sql);
+            }
+
+            return !type.IsInterface ?
+                await connection.QueryAsync<T>(sql, parameters, transaction, commandTimeout) :
+                await GetAllAsyncImpl<T>(connection, parameters, transaction, commandTimeout, sql, type);
+        }
+
+        private static string BuildSqlGetAll<T>(IDbConnection connection)
         {
             var type = typeof(T);
-            var cacheType = typeof(List<T>);
             var adapter = GetFormatter(connection);
+            var cacheType = typeof(List<T>);
             var map = GetColumnAliasMap(type);
-
             if (!GetQueries.TryGetValue(cacheType.TypeHandle, out string sql))
             {
                 GetSingleKey<T>(nameof(GetAll));
@@ -128,20 +147,26 @@ namespace Dandy
                 });
                 sbColumnList = sbColumnList.Remove(sbColumnList.Length - 1, 1);
                 sql = $"select {sbColumnList.ToString()} from {name}";
-                
+
                 GetQueries[cacheType.TypeHandle] = sql;
             }
-
-            if (!type.IsInterface)
-            {
-                return connection.QueryAsync<T>(sql, null, transaction, commandTimeout);
-            }
-            return GetAllAsyncImpl<T>(connection, transaction, commandTimeout, sql, type);
+            return sql;
         }
+        private static string AppendSqlWithPagination(IDbConnection connection, string selectSql) =>
+            (connection.GetType().Name.Contains("DB2")) ?
+            $"{selectSql} LIMIT @top OFFSET @skip" :
+            selectSql;
 
-        private static async Task<IEnumerable<T>> GetAllAsyncImpl<T>(IDbConnection connection, IDbTransaction transaction, int? commandTimeout, string sql, Type type) where T : class
+        private static object GetPaginationParameters(int? pageSize, int? page) =>
+            new
+            {
+                top = pageSize.Value,
+                skip = ((page ?? 1) - 1) * pageSize.Value
+            };
+
+        private static async Task<IEnumerable<T>> GetAllAsyncImpl<T>(IDbConnection connection, object parameters, IDbTransaction transaction, int? commandTimeout, string sql, Type type) where T : class
         {
-            var result = await connection.QueryAsync(sql).ConfigureAwait(false);
+            var result = await connection.QueryAsync(sql, parameters).ConfigureAwait(false);
             var list = new List<T>();
             foreach (IDictionary<string, object> res in result)
             {
