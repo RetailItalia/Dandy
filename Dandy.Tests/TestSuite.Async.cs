@@ -131,7 +131,7 @@ namespace Dandy.Tests
             {
                 // tests against "Article" table (Table attribute)
                 var id = await connection.InsertAsync(new Article { Code = "Pencil", Name = "My Pencil" });
-                
+
                 var article = await connection.GetAsync<Article>(new { Id = id, Code = "Pencil" }).ConfigureAwait(false);
                 Assert.NotNull(article);
                 Assert.Equal("My Pencil", article.Name);
@@ -145,7 +145,7 @@ namespace Dandy.Tests
         [Fact]
         public async Task TableNameAsync()
         {
-          
+
             using (var connection = GetOpenConnection())
             {
                 // tests against "Automobiles" table (Table attribute)
@@ -177,7 +177,7 @@ namespace Dandy.Tests
 
                 Assert.NotNull(addedArticle);
                 Assert.Equal(article.Code, addedArticle.Code);
-                Assert.Equal(article.Name, addedArticle.Name);          
+                Assert.Equal(article.Name, addedArticle.Name);
             }
         }
 
@@ -516,6 +516,50 @@ namespace Dandy.Tests
                 Assert.Equal(total, numberOfEntities);
 
                 await Assert.ThrowsAnyAsync<Exception>(async () => await connection.GetAllAsync<User>(page: 1, pageSize: -2));
+            }
+        }
+
+        [Fact]
+        public async Task GetAllFilteredAsync()
+        {
+            const int numberOfEntities = 10;
+            var myUser = new User { Age = 55, Name = "Foo" };
+            var users = new List<User>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new User { Name = "User " + i, Age = i });
+            users.Add(myUser);
+
+            using (var connection = GetOpenConnection())
+            {
+                await connection.DeleteAllAsync<User>().ConfigureAwait(false);
+
+                var total = await connection.InsertAsync(users).ConfigureAwait(false);
+
+                var result = await connection.GetAllAsync<User>(fiter: x => x.Name == "Foo");
+
+                var user = result.First();
+                Assert.Equal(myUser.Name, user.Name);
+                Assert.Equal(myUser.Age, user.Age);
+            }
+        }
+
+        [Fact]
+        public async Task GetAllFilteredItemNotFoundAsync()
+        {
+            const int numberOfEntities = 10;            
+            var users = new List<User>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new User { Name = "User " + i, Age = i });            
+
+            using (var connection = GetOpenConnection())
+            {
+                await connection.DeleteAllAsync<User>().ConfigureAwait(false);
+
+                var total = await connection.InsertAsync(users).ConfigureAwait(false);
+
+                var result = await connection.GetAllAsync<User>(fiter: x => x.Name == "Foo");
+
+                Assert.Empty(result);
             }
         }
 

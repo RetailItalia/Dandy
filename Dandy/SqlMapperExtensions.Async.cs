@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Dapper;
 using Dandy.Mapping;
+using System.Linq.Expressions;
 
 namespace Dandy
 {
@@ -106,13 +107,22 @@ namespace Dandy
         /// <param name="page">[At the moment it only works in DB2] page number (from 1 to ...)</param>
         /// <param name="pageSize">[At the moment it only works in DB2] page size (from 1 to ...)</param>
         /// <returns>Entity of T</returns>
-        public async static Task<IEnumerable<T>> GetAllAsync<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null, int? page = null, int? pageSize = null) where T : class
+        public async static Task<IEnumerable<T>> GetAllAsync<T>(
+            this IDbConnection connection, 
+            IDbTransaction transaction = null, int? commandTimeout = null, int? page = null, int? pageSize = null,
+            System.Linq.Expressions.Expression<Func<T, bool>> fiter=null) 
+            where T : class
         {
             System.Diagnostics.Contracts.Contract.Requires((!pageSize.HasValue) || pageSize.HasValue && pageSize >= 0, "pageSize must be a number >= 0");
             var type = typeof(T);
             var sql = BuildSqlGetAll<T>(connection);
 
             object parameters = null;
+            if(fiter != null)
+            {
+                var where = GetQuery(fiter);
+                sql += $" WHERE {where}";
+            }
             if (pageSize.HasValue)
             {
                 parameters = GetPaginationParameters(pageSize, page);
@@ -122,6 +132,96 @@ namespace Dandy
             return !type.IsInterface ?
                 await connection.QueryAsync<T>(sql, parameters, transaction, commandTimeout) :
                 await GetAllAsyncImpl<T>(connection, parameters, transaction, commandTimeout, sql, type);
+        }
+
+        public static string GetQuery<T, TResult>(Expression<Func<T, TResult>> property)
+        {
+            return ProcessTreeNode(property.Body as BinaryExpression);
+        }
+
+        public static string ProcessTreeNode(BinaryExpression be)
+        {
+            object x = string.Empty;
+            object y = string.Empty;
+
+            if (be.Left is MethodCallExpression)
+            {
+                var m = (be.Left as MethodCallExpression);
+
+                if (m.Method.Name == "Contains")
+                    x = $"{ParseMemberExpr(m.Object as MemberExpression)} LIKE '%{CompileExpression(m.Arguments.FirstOrDefault())}%'";
+            }
+
+            if (be.Right is MethodCallExpression)
+            {
+                var m = (be.Right as MethodCallExpression);
+
+                if (m.Method.Name == "Contains")
+                    y = $"{ParseMemberExpr(m.Object as MemberExpression)} LIKE '%{CompileExpression(m.Arguments.FirstOrDefault())}%'";
+            }
+
+            if (be.Left is MemberExpression)
+                x = ParseMemberExpr(be.Left as MemberExpression);
+            if (be.Left is ConstantExpression)
+                x = ParseConstantExpr(be.Left as ConstantExpression);
+            if (be.Left is BinaryExpression)
+                x = ProcessTreeNode(be.Left as BinaryExpression);
+
+            if (be.Right is MemberExpression)
+                y = ParseMemberExpr(be.Right as MemberExpression);
+            if (be.Right is ConstantExpression)
+                y = ParseConstantExpr(be.Right as ConstantExpression);
+            if (be.Right is BinaryExpression)
+                y = ProcessTreeNode(be.Right as BinaryExpression);
+
+            if (be.Right is UnaryExpression)
+                y = $"{GetOperator(be.Right)}({ProcessTreeNode((be.Right as UnaryExpression).Operand as BinaryExpression)})";
+
+
+            return $"{x} {GetOperator(be)} {y}";
+        }
+        private static string GetOperator(Expression be)
+        {
+            switch (be.NodeType)
+            {
+                case ExpressionType.Not: return "NOT";
+                case ExpressionType.Equal: return "=";
+                case ExpressionType.NotEqual: return "<>";
+                case ExpressionType t when
+                t == ExpressionType.AndAlso || t == ExpressionType.And:
+                    return "AND";
+                case ExpressionType t when
+                t == ExpressionType.OrElse || t == ExpressionType.Or:
+                    return "OR";
+                // case ExpressionType.
+                default: return string.Empty;
+            }
+        }
+        private static string ParseMemberExpr(MemberExpression me)
+        {
+            if (me.Expression.NodeType != ExpressionType.Parameter)
+            {
+                ParseExpr(me.Expression);
+            }
+            return me.Member.Name;
+        }
+        private static string ParseExpr(Expression e)
+        {
+            var s = CompileExpression(e);
+            return ParseValue(s);
+        }
+        private static object CompileExpression(Expression e)
+        {
+            return Expression.Lambda(e).Compile().DynamicInvoke();
+        }
+        private static string ParseConstantExpr(ConstantExpression ce) => ParseValue(ce.Value);
+        private static string ParseValue(object value)
+        {
+            if (value is null)
+                return "NULL";
+            if (value is string)
+                return $"'{value}'"; //add escape
+            return value.ToString();
         }
 
         private static string BuildSqlGetAll<T>(IDbConnection connection)
