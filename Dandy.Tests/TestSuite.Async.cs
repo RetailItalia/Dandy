@@ -542,7 +542,7 @@ namespace Dandy.Tests
                 Assert.Equal(myUser.Age, user.Age);
             }
         }
-       
+
         [Fact]
         public async Task GetAllFilteredWithColumnAliasAsync()
         {
@@ -550,8 +550,6 @@ namespace Dandy.Tests
 
             using (var connection = GetOpenConnection())
             {
-                SqlMapperExtensions.RegisterMap<AliasedField>(new AliasedField.AliasMapper());
-
                 connection.DeleteAll<AliasedField>();
 
                 connection.Execute("insert into AliasedFields (Field) values('Adam') ");
@@ -559,10 +557,13 @@ namespace Dandy.Tests
                 connection.Execute("insert into AliasedFields (Field) values('Paul') ");
                 connection.Execute("insert into AliasedFields (Field) values('Marc') ");
 
-                var result = await connection.GetAllAsync<AliasedField>(filter: x => x.AField == myUser.AField);
+                var result = await connection
+                    .GetAllAsync<AliasedField>
+                    (filter: x => x.AField == myUser.AField || x.AField.Contains("ar"));
 
-                var user = result.First();
-                Assert.Equal(myUser.AField, user.AField);
+
+                Assert.Contains(result, _ => _.AField == myUser.AField);
+                Assert.Contains(result, _ => _.AField == "Marc");
             }
         }
         [Fact]

@@ -131,7 +131,7 @@ namespace Dandy.Tests
         public string Name { get; set; }
     }
 
-    
+
     public class Stuff
     {
         [Key]
@@ -147,7 +147,7 @@ namespace Dandy.Tests
         }
     }
 
-    
+
     public class Car
     {
         public int Id { get; set; }
@@ -163,7 +163,7 @@ namespace Dandy.Tests
         }
     }
 
-    
+
     public class Result
     {
         public int Id { get; set; }
@@ -171,7 +171,7 @@ namespace Dandy.Tests
         public int Order { get; set; }
     }
 
-    
+
     public class GenericType<T>
     {
         [ExplicitKey]
@@ -184,7 +184,7 @@ namespace Dandy.Tests
         public TestSuite()
         {
             SqlMapperExtensions.InitMapping();
-            
+
         }
         protected static readonly bool IsAppVeyor = Environment.GetEnvironmentVariable("Appveyor")?.ToUpperInvariant() == "TRUE";
 
@@ -403,7 +403,7 @@ namespace Dandy.Tests
         [Fact]
         public void TableName()
         {
-            
+
 
             using (var connection = GetOpenConnection())
             {
@@ -787,15 +787,12 @@ namespace Dandy.Tests
         {
             using (var connection = GetOpenConnection())
             {
-                SqlMapperExtensions
-                    .RegisterMap<AliasedField>(new AliasedField.AliasMapper());
-
                 connection.DeleteAll<AliasedField>();
                 connection.Execute("insert into AliasedFields (Field) values('Adam') ");
 
                 var actual = (await connection.GetAllAsync<AliasedField>()).FirstOrDefault();
 
-                Assert.Equal( "Adam", actual.AField);
+                Assert.Equal("Adam", actual.AField);
             }
 
         }
@@ -804,9 +801,6 @@ namespace Dandy.Tests
         {
             using (var connection = GetOpenConnection())
             {
-                SqlMapperExtensions
-                    .RegisterMap<AliasedField>(new AliasedField.AliasMapper());
-
                 connection.DeleteAll<AliasedField>();
 
                 connection.Execute("insert into AliasedFields (Field) values('Adam') ");
@@ -889,5 +883,5 @@ namespace Dandy.Tests
 
     }
 
-   
+
 }

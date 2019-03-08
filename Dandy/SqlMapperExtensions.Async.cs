@@ -115,7 +115,7 @@ namespace Dandy
         {
             System.Diagnostics.Contracts.Contract.Requires((!pageSize.HasValue) || pageSize.HasValue && pageSize >= 0, "pageSize must be a number >= 0");
             var type = typeof(T);
-            var sql = BuildSqlGetAll<T>(connection,filter);
+            var sql = BuildSqlGetAll(connection,filter);
 
             object parameters = null;          
             if (pageSize.HasValue)
