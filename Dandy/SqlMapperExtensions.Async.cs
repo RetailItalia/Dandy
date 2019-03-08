@@ -134,49 +134,24 @@ namespace Dandy
                 await GetAllAsyncImpl<T>(connection, parameters, transaction, commandTimeout, sql, type);
         }
 
-        public static string GetQuery<T, TResult>(Expression<Func<T, TResult>> property)
+        public static string GetQuery<T, TResult>(Expression<Func<T, TResult>> property) => ParseExpr(property.Body);
+      
+        private static string ParseExpr(Expression expr)
         {
-            return ProcessTreeNode(property.Body as BinaryExpression);
+            switch (expr)
+            {
+                case MethodCallExpression mce: return ParseMethodCallExpr(mce);
+                case MemberExpression me: return ParseMemberExpr(me);
+                case ConstantExpression ce: return ParseConstantExpr(ce);
+                case UnaryExpression ue: return $"{GetOperator(ue)}({ProcessTreeNode((ue).Operand as BinaryExpression)})";
+                case BinaryExpression be: return ProcessTreeNode(be);
+                default: return string.Empty;
+            }
         }
-
         public static string ProcessTreeNode(BinaryExpression be)
         {
-            object x = string.Empty;
-            object y = string.Empty;
-
-            if (be.Left is MethodCallExpression)
-            {
-                var m = (be.Left as MethodCallExpression);
-
-                if (m.Method.Name == "Contains")
-                    x = $"{ParseMemberExpr(m.Object as MemberExpression)} LIKE '%{CompileExpression(m.Arguments.FirstOrDefault())}%'";
-            }
-
-            if (be.Right is MethodCallExpression)
-            {
-                var m = (be.Right as MethodCallExpression);
-
-                if (m.Method.Name == "Contains")
-                    y = $"{ParseMemberExpr(m.Object as MemberExpression)} LIKE '%{CompileExpression(m.Arguments.FirstOrDefault())}%'";
-            }
-
-            if (be.Left is MemberExpression)
-                x = ParseMemberExpr(be.Left as MemberExpression);
-            if (be.Left is ConstantExpression)
-                x = ParseConstantExpr(be.Left as ConstantExpression);
-            if (be.Left is BinaryExpression)
-                x = ProcessTreeNode(be.Left as BinaryExpression);
-
-            if (be.Right is MemberExpression)
-                y = ParseMemberExpr(be.Right as MemberExpression);
-            if (be.Right is ConstantExpression)
-                y = ParseConstantExpr(be.Right as ConstantExpression);
-            if (be.Right is BinaryExpression)
-                y = ProcessTreeNode(be.Right as BinaryExpression);
-
-            if (be.Right is UnaryExpression)
-                y = $"{GetOperator(be.Right)}({ProcessTreeNode((be.Right as UnaryExpression).Operand as BinaryExpression)})";
-
+            var x = ParseExpr(be.Left);
+            var y = ParseExpr(be.Right);
 
             return $"{x} {GetOperator(be)} {y}";
         }
@@ -193,27 +168,35 @@ namespace Dandy
                 case ExpressionType t when
                 t == ExpressionType.OrElse || t == ExpressionType.Or:
                     return "OR";
-                // case ExpressionType.
                 default: return string.Empty;
             }
         }
-        private static string ParseMemberExpr(MemberExpression me)
+        private static string ParseMethodCallExpr(MethodCallExpression me)
         {
-            if (me.Expression.NodeType != ExpressionType.Parameter)
+            var columnName = ParseMemberExpr(me.Object as MemberExpression);
+            switch (me.Method.Name)
             {
-                ParseExpr(me.Expression);
+                case "Contains": return $"{columnName} LIKE '%{CompileExpression(me.Arguments.FirstOrDefault())}%'";
+                case "StartsWith": return $"{columnName} LIKE '{CompileExpression(me.Arguments.FirstOrDefault())}%'";
+                case "EndsWith": return $"{columnName} LIKE '%{CompileExpression(me.Arguments.FirstOrDefault())}'";
+                default: throw new Exception($"{me.Method.Name} is not supported");
             }
-            return me.Member.Name;
         }
-        private static string ParseExpr(Expression e)
+        private static string ParseMemberExpr(MemberExpression me) =>
+          me.Expression.NodeType != ExpressionType.Parameter ?
+          ParseExpr(me.Expression, me.Member.Name) :
+          me.Member.Name;
+
+        private static string ParseExpr(Expression e, string memberName) =>
+            ParseValue(CompileExpression(e, memberName));
+
+        private static object CompileExpression(Expression e, string memberName)
         {
-            var s = CompileExpression(e);
-            return ParseValue(s);
+            var c = CompileExpression(e);
+            return CompileExpression(Expression.PropertyOrField(Expression.Constant(c), memberName));
         }
-        private static object CompileExpression(Expression e)
-        {
-            return Expression.Lambda(e).Compile().DynamicInvoke();
-        }
+        private static object CompileExpression(Expression e) => Expression.Lambda(e).Compile().DynamicInvoke();
+
         private static string ParseConstantExpr(ConstantExpression ce) => ParseValue(ce.Value);
         private static string ParseValue(object value)
         {
