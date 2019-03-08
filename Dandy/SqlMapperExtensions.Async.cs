@@ -12,7 +12,7 @@ using System.Linq.Expressions;
 namespace Dandy
 {
     public static partial class SqlMapperExtensions
-    {      
+    {
         /// <summary>
         /// Returns a single entity by a single id from table "Ts" asynchronously using .NET 4.5 Task. T must be of interface type. 
         /// Id must be marked with [Key] attribute.
@@ -108,21 +108,16 @@ namespace Dandy
         /// <param name="pageSize">[At the moment it only works in DB2] page size (from 1 to ...)</param>
         /// <returns>Entity of T</returns>
         public async static Task<IEnumerable<T>> GetAllAsync<T>(
-            this IDbConnection connection, 
+            this IDbConnection connection,
             IDbTransaction transaction = null, int? commandTimeout = null, int? page = null, int? pageSize = null,
-            System.Linq.Expressions.Expression<Func<T, bool>> fiter=null) 
+            Expression<Func<T, bool>> filter = null)
             where T : class
         {
             System.Diagnostics.Contracts.Contract.Requires((!pageSize.HasValue) || pageSize.HasValue && pageSize >= 0, "pageSize must be a number >= 0");
             var type = typeof(T);
-            var sql = BuildSqlGetAll<T>(connection);
+            var sql = BuildSqlGetAll<T>(connection,filter);
 
-            object parameters = null;
-            if(fiter != null)
-            {
-                var where = GetQuery(fiter);
-                sql += $" WHERE {where}";
-            }
+            object parameters = null;          
             if (pageSize.HasValue)
             {
                 parameters = GetPaginationParameters(pageSize, page);
@@ -134,24 +129,24 @@ namespace Dandy
                 await GetAllAsyncImpl<T>(connection, parameters, transaction, commandTimeout, sql, type);
         }
 
-        public static string GetQuery<T, TResult>(Expression<Func<T, TResult>> property) => ParseExpr(property.Body);
-      
-        private static string ParseExpr(Expression expr)
+        private static string GetQuery<T, TResult>(Expression<Func<T, TResult>> property, Func<string, string> buildColumnName) => ParseExpr(property.Body,buildColumnName);
+
+        private static string ParseExpr(Expression expr, Func<string, string> buildColumnName)
         {
             switch (expr)
             {
-                case MethodCallExpression mce: return ParseMethodCallExpr(mce);
-                case MemberExpression me: return ParseMemberExpr(me);
+                case MethodCallExpression mce: return ParseMethodCallExpr(mce, buildColumnName);
+                case MemberExpression me: return ParseMemberExpr(me, buildColumnName);
                 case ConstantExpression ce: return ParseConstantExpr(ce);
-                case UnaryExpression ue: return $"{GetOperator(ue)}({ProcessTreeNode((ue).Operand as BinaryExpression)})";
-                case BinaryExpression be: return ProcessTreeNode(be);
+                case UnaryExpression ue: return $"{GetOperator(ue)}({ProcessTreeNode((ue).Operand as BinaryExpression, buildColumnName)})";
+                case BinaryExpression be: return ProcessTreeNode(be, buildColumnName);
                 default: return string.Empty;
             }
         }
-        public static string ProcessTreeNode(BinaryExpression be)
+        public static string ProcessTreeNode(BinaryExpression be, Func<string, string> buildColumnName)
         {
-            var x = ParseExpr(be.Left);
-            var y = ParseExpr(be.Right);
+            var x = ParseExpr(be.Left, buildColumnName);
+            var y = ParseExpr(be.Right, buildColumnName);
 
             return $"{x} {GetOperator(be)} {y}";
         }
@@ -171,9 +166,9 @@ namespace Dandy
                 default: return string.Empty;
             }
         }
-        private static string ParseMethodCallExpr(MethodCallExpression me)
+        private static string ParseMethodCallExpr(MethodCallExpression me, Func<string, string> buildColumnName)
         {
-            var columnName = ParseMemberExpr(me.Object as MemberExpression);
+            var columnName = ParseMemberExpr(me.Object as MemberExpression, buildColumnName);
             switch (me.Method.Name)
             {
                 case "Contains": return $"{columnName} LIKE '%{CompileExpression(me.Arguments.FirstOrDefault())}%'";
@@ -182,10 +177,10 @@ namespace Dandy
                 default: throw new Exception($"{me.Method.Name} is not supported");
             }
         }
-        private static string ParseMemberExpr(MemberExpression me) =>
+        private static string ParseMemberExpr(MemberExpression me, Func<string, string> buildColumnName) =>
           me.Expression.NodeType != ExpressionType.Parameter ?
           ParseExpr(me.Expression, me.Member.Name) :
-          me.Member.Name;
+          buildColumnName(me.Member.Name);
 
         private static string ParseExpr(Expression e, string memberName) =>
             ParseValue(CompileExpression(e, memberName));
@@ -207,7 +202,7 @@ namespace Dandy
             return value.ToString();
         }
 
-        private static string BuildSqlGetAll<T>(IDbConnection connection)
+        private static string BuildSqlGetAll<T>(IDbConnection connection, Expression<Func<T, bool>> fiter = null)
         {
             var type = typeof(T);
             var adapter = GetFormatter(connection);
@@ -232,6 +227,11 @@ namespace Dandy
                 sql = $"select {sbColumnList.ToString()} from {name}";
 
                 GetQueries[cacheType.TypeHandle] = sql;
+            }
+            if (fiter != null)
+            {
+                var where = GetQuery(fiter, _=> map.GetColumnName(type.GetProperty(_)));
+                sql += $" WHERE {where}";
             }
             return sql;
         }
@@ -341,14 +341,14 @@ namespace Dandy
                     RemapObject(keyProperties
                     , allPropertiesExceptKeyAndComputed
                     , entityToInsert));
-                
-                        var propertyInfos = keyProperties.ToArray();
-                        if (propertyInfos.Length == 0) return id;
 
-                        var idProperty = propertyInfos[0];
-                        idProperty.SetValue(entityToInsert, Convert.ChangeType(id, idProperty.PropertyType), null);
+                var propertyInfos = keyProperties.ToArray();
+                if (propertyInfos.Length == 0) return id;
+
+                var idProperty = propertyInfos[0];
+                idProperty.SetValue(entityToInsert, Convert.ChangeType(id, idProperty.PropertyType), null);
                 return id;
-                
+
             }
 
             //insert list of entities
@@ -422,7 +422,7 @@ namespace Dandy
             for (var i = 0; i < nonIdProps.Count; i++)
             {
                 var property = nonIdProps[i];
-                adapter.AppendColumnNameEqualsValue(sb,map.GetColumnName(property),property.Name);
+                adapter.AppendColumnNameEqualsValue(sb, map.GetColumnName(property), property.Name);
                 if (i < nonIdProps.Count - 1)
                     sb.Append(", ");
             }
@@ -509,7 +509,7 @@ namespace Dandy
                 if (i < keyProperties.Count - 1)
                     sb.Append(" AND ");
             }
-            
+
             var deleted = 0;
 
 
@@ -529,7 +529,7 @@ namespace Dandy
                     , transaction: transaction).ConfigureAwait(false);
             }
 
-            
+
             return deleted > 0;
         }
 
@@ -544,13 +544,13 @@ namespace Dandy
         public static async Task<bool> DeleteAllAsync<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
         {
             var type = typeof(T);
-            var statement = "DELETE FROM " + GetTableAliasMap(type).GetTableMap(); 
+            var statement = "DELETE FROM " + GetTableAliasMap(type).GetTableMap();
             var deleted = await connection.ExecuteAsync(statement, null, transaction, commandTimeout).ConfigureAwait(false);
             return deleted > 0;
         }
     }
 
-    
+
 }
 
 public partial interface ISqlAdapter

@@ -535,21 +535,43 @@ namespace Dandy.Tests
 
                 var total = await connection.InsertAsync(users).ConfigureAwait(false);
 
-                var result = await connection.GetAllAsync<User>(fiter: x => x.Name == "Foo");
+                var result = await connection.GetAllAsync<User>(filter: x => x.Name == "Foo");
 
                 var user = result.First();
                 Assert.Equal(myUser.Name, user.Name);
                 Assert.Equal(myUser.Age, user.Age);
             }
         }
+       
+        [Fact]
+        public async Task GetAllFilteredWithColumnAliasAsync()
+        {
+            var myUser = new AliasedField { AField = "John" };
 
+            using (var connection = GetOpenConnection())
+            {
+                SqlMapperExtensions.RegisterMap<AliasedField>(new AliasedField.AliasMapper());
+
+                connection.DeleteAll<AliasedField>();
+
+                connection.Execute("insert into AliasedFields (Field) values('Adam') ");
+                connection.Execute("insert into AliasedFields (Field) values('John') ");
+                connection.Execute("insert into AliasedFields (Field) values('Paul') ");
+                connection.Execute("insert into AliasedFields (Field) values('Marc') ");
+
+                var result = await connection.GetAllAsync<AliasedField>(filter: x => x.AField == myUser.AField);
+
+                var user = result.First();
+                Assert.Equal(myUser.AField, user.AField);
+            }
+        }
         [Fact]
         public async Task GetAllFilteredItemNotFoundAsync()
         {
-            const int numberOfEntities = 10;            
+            const int numberOfEntities = 10;
             var users = new List<User>();
             for (var i = 0; i < numberOfEntities; i++)
-                users.Add(new User { Name = "User " + i, Age = i });            
+                users.Add(new User { Name = "User " + i, Age = i });
 
             using (var connection = GetOpenConnection())
             {
@@ -557,7 +579,7 @@ namespace Dandy.Tests
 
                 var total = await connection.InsertAsync(users).ConfigureAwait(false);
 
-                var result = await connection.GetAllAsync<User>(fiter: x => x.Name == "Foo");
+                var result = await connection.GetAllAsync<User>(filter: x => x.Name == "Foo");
 
                 Assert.Empty(result);
             }
