@@ -524,6 +524,31 @@ namespace Dandy.Tests
         }
 
         [Fact]
+        public async Task GetAllFilteredCompositeKey()
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<Article>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new Article { Name = "Article " + i, Id = i, Code = $"C_{i}" });
+
+            using (var connection = GetOpenConnection())
+            {
+                await connection.DeleteAllAsync<Article>().ConfigureAwait(false);
+
+                var total = await connection.InsertAsync(users).ConfigureAwait(false);
+                Assert.Equal(total, numberOfEntities);
+
+                var articles = await connection.GetAllAsync<Article>(filter: x => x.Name.EndsWith("1"));
+                
+                Assert.Contains(articles, u => u.Name == "Article 1");
+                Assert.DoesNotContain(articles, u => u.Name == "Article 0");
+                Assert.DoesNotContain(articles, u => u.Name == "Article 2");
+            }
+        }
+
+
+        [Fact]
         public async Task GetAllPagedInvalidPageParametersAsync()
         {
             const int numberOfEntities = 10;

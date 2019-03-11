@@ -137,7 +137,7 @@ namespace Dandy
             var map = GetColumnAliasMap(type);
             if (!GetQueries.TryGetValue(cacheType.TypeHandle, out string sql))
             {
-                GetSingleKey<T>(nameof(GetAll));
+                //GetSingleKey<T>(nameof(GetAll));
 
                 var sbColumnList = new StringBuilder();
                 var name = GetTableName(type);
