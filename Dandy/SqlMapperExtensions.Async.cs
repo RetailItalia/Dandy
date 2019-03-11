@@ -115,12 +115,12 @@ namespace Dandy
         {
             System.Diagnostics.Contracts.Contract.Requires((!pageSize.HasValue) || pageSize.HasValue && pageSize >= 0, "pageSize must be a number >= 0");
             var type = typeof(T);
-            var sql = BuildSqlGetAll(connection,filter);
+            (string sql, DynamicParameters parameters) = BuildSqlGetAll(connection, filter);
 
-            object parameters = null;          
             if (pageSize.HasValue)
             {
-                parameters = GetPaginationParameters(pageSize, page);
+                if (parameters == null) parameters = new DynamicParameters();
+                parameters.AddDynamicParams(GetPaginationParameters(pageSize, page));
                 sql = AppendSqlWithPagination(connection, sql);
             }
 
@@ -129,80 +129,7 @@ namespace Dandy
                 await GetAllAsyncImpl<T>(connection, parameters, transaction, commandTimeout, sql, type);
         }
 
-        private static string GetQuery<T, TResult>(Expression<Func<T, TResult>> property, Func<string, string> buildColumnName) => ParseExpr(property.Body,buildColumnName);
-
-        private static string ParseExpr(Expression expr, Func<string, string> buildColumnName)
-        {
-            switch (expr)
-            {
-                case MethodCallExpression mce: return ParseMethodCallExpr(mce, buildColumnName);
-                case MemberExpression me: return ParseMemberExpr(me, buildColumnName);
-                case ConstantExpression ce: return ParseConstantExpr(ce);
-                case UnaryExpression ue: return $"{GetOperator(ue)}({ProcessTreeNode((ue).Operand as BinaryExpression, buildColumnName)})";
-                case BinaryExpression be: return ProcessTreeNode(be, buildColumnName);
-                default: return string.Empty;
-            }
-        }
-        public static string ProcessTreeNode(BinaryExpression be, Func<string, string> buildColumnName)
-        {
-            var x = ParseExpr(be.Left, buildColumnName);
-            var y = ParseExpr(be.Right, buildColumnName);
-
-            return $"{x} {GetOperator(be)} {y}";
-        }
-        private static string GetOperator(Expression be)
-        {
-            switch (be.NodeType)
-            {
-                case ExpressionType.Not: return "NOT";
-                case ExpressionType.Equal: return "=";
-                case ExpressionType.NotEqual: return "<>";
-                case ExpressionType t when
-                t == ExpressionType.AndAlso || t == ExpressionType.And:
-                    return "AND";
-                case ExpressionType t when
-                t == ExpressionType.OrElse || t == ExpressionType.Or:
-                    return "OR";
-                default: return string.Empty;
-            }
-        }
-        private static string ParseMethodCallExpr(MethodCallExpression me, Func<string, string> buildColumnName)
-        {
-            var columnName = ParseMemberExpr(me.Object as MemberExpression, buildColumnName);
-            switch (me.Method.Name)
-            {
-                case "Contains": return $"{columnName} LIKE '%{CompileExpression(me.Arguments.FirstOrDefault())}%'";
-                case "StartsWith": return $"{columnName} LIKE '{CompileExpression(me.Arguments.FirstOrDefault())}%'";
-                case "EndsWith": return $"{columnName} LIKE '%{CompileExpression(me.Arguments.FirstOrDefault())}'";
-                default: throw new Exception($"{me.Method.Name} is not supported");
-            }
-        }
-        private static string ParseMemberExpr(MemberExpression me, Func<string, string> buildColumnName) =>
-          me.Expression.NodeType != ExpressionType.Parameter ?
-          ParseExpr(me.Expression, me.Member.Name) :
-          buildColumnName(me.Member.Name);
-
-        private static string ParseExpr(Expression e, string memberName) =>
-            ParseValue(CompileExpression(e, memberName));
-
-        private static object CompileExpression(Expression e, string memberName)
-        {
-            var c = CompileExpression(e);
-            return CompileExpression(Expression.PropertyOrField(Expression.Constant(c), memberName));
-        }
-        private static object CompileExpression(Expression e) => Expression.Lambda(e).Compile().DynamicInvoke();
-
-        private static string ParseConstantExpr(ConstantExpression ce) => ParseValue(ce.Value);
-        private static string ParseValue(object value)
-        {
-            if (value is null)
-                return "NULL";
-            if (value is string)
-                return $"'{value}'"; //add escape
-            return value.ToString();
-        }
-
-        private static string BuildSqlGetAll<T>(IDbConnection connection, Expression<Func<T, bool>> fiter = null)
+        private static (string sql, DynamicParameters parameters) BuildSqlGetAll<T>(IDbConnection connection, Expression<Func<T, bool>> filter = null)
         {
             var type = typeof(T);
             var adapter = GetFormatter(connection);
@@ -228,24 +155,36 @@ namespace Dandy
 
                 GetQueries[cacheType.TypeHandle] = sql;
             }
-            if (fiter != null)
+            if (filter != null)
             {
-                var where = GetQuery(fiter, _=> map.GetColumnName(type.GetProperty(_)));
-                sql += $" WHERE {where}";
+                var where = BuildWhere(filter, _ => map.GetColumnName(type.GetProperty(_)));
+                sql += $" WHERE {where.SQL}";
+                return (sql, where.Parameters);
             }
-            return sql;
+            return (sql, null);
+        }
+
+        public static BuildExpressionResult BuildWhere<T, TResult>(Expression<Func<T, TResult>> expression, Func<string, string> buildColumnName)
+        {
+            return new ExpressionBuilder(buildColumnName).Build(expression.Body);
         }
         private static string AppendSqlWithPagination(IDbConnection connection, string selectSql) =>
-            (connection.GetType().Name.Contains("DB2")) ?
-            $"{selectSql} LIMIT @top OFFSET @skip" :
-            selectSql;
+        (connection.GetType().Name.Contains("DB2")) ?
+        $"{selectSql} LIMIT @top OFFSET @skip" :
+        selectSql;
 
-        private static object GetPaginationParameters(int? pageSize, int? page) =>
-            new
-            {
-                top = pageSize.Value,
-                skip = ((page ?? 1) - 1) * pageSize.Value
-            };
+        private static DynamicParameters GetPaginationParameters(int? pageSize, int? page)
+        {
+            var pars = new DynamicParameters();
+            pars.Add("top", pageSize.Value);
+            pars.Add("skip", ((page ?? 1) - 1) * pageSize.Value);
+            return pars;
+        }
+        //new
+        //{
+        //    top = pageSize.Value,
+        //    skip = ((page ?? 1) - 1) * pageSize.Value
+        //};
 
         private static async Task<IEnumerable<T>> GetAllAsyncImpl<T>(IDbConnection connection, object parameters, IDbTransaction transaction, int? commandTimeout, string sql, Type type) where T : class
         {
@@ -783,5 +722,150 @@ public partial class FbAdapter
         idp.SetValue(entityToInsert, Convert.ChangeType(id, idp.PropertyType), null);
 
         return Convert.ToInt32(id);
+    }
+}
+
+public class BuildExpressionResult
+{
+    public BuildExpressionResult(string sql, DynamicParameters @params)
+    {
+        SQL = sql;
+        Parameters = @params;
+    }
+    public string SQL { get; }
+    public DynamicParameters Parameters { get; }
+}
+public class ExpressionBuilder
+{
+    private const string concatOperator = "||";
+    private int _index = 0;
+    private readonly DynamicParameters _parameters = new DynamicParameters();
+
+    private int GetNextIndex() => _index++;
+
+    private readonly Func<string, string> _buildColumnName;
+    public ExpressionBuilder(Func<string, string> buildColumnName)
+    {
+        _buildColumnName = buildColumnName;
+    }
+
+    public BuildExpressionResult Build(Expression expr) =>
+        new BuildExpressionResult(PerformBuild(expr).ToString(), _parameters);
+
+    private object PerformBuild(Expression expr)
+    {
+        switch (expr)
+        {
+            case MethodCallExpression mce:
+                return ParseMethodCallExpr(mce);
+            case MemberExpression me:
+                var val = ParseMemberExpr(me);
+                return (val.ToString());
+            case ConstantExpression ce:
+                return ParseConstantExpr(ce);
+            case UnaryExpression ue:
+                {
+                    if (ue.Operand is BinaryExpression)
+                    {
+                        var parsed = ProcessTreeNode(ue.Operand as BinaryExpression);
+
+                        return $"{GetOperator(ue)}({parsed})";
+                    }
+                    return $"{GetOperator(ue)}({PerformBuild(ue.Operand)})";
+                }
+            case BinaryExpression be:
+                return ProcessTreeNode(be);
+            default: return string.Empty;
+        }
+    }
+
+    private string ProcessTreeNode(BinaryExpression be)
+    {
+        var x = PerformBuild(be.Left);
+        var y = PerformBuild(be.Right);
+
+        if (IsValue(be.Left))
+            return AddParameter(y.ToString(), x, GetOperator(be));
+        if (IsValue(be.Right))
+            return AddParameter(x.ToString(), y, GetOperator(be));
+
+        return $"{x} {GetOperator(be)} {y}";
+    }
+
+    private string AddParameter(string left, object right, string operatorName)
+    {
+        var columnName = $"@{left}_{GetNextIndex()}";
+        _parameters.Add(columnName, right);
+        return $"{left} {operatorName} {columnName}";
+    }
+
+    private bool IsValue(Expression expression) =>
+        expression is ConstantExpression ||
+            ((expression is MemberExpression) && (expression as MemberExpression).Expression.NodeType != ExpressionType.Parameter);
+
+    private static string GetOperator(Expression be)
+    {
+        switch (be.NodeType)
+        {
+            case ExpressionType.Not: return "NOT";
+            case ExpressionType.Equal: return "=";
+            case ExpressionType.NotEqual: return "<>";
+            case ExpressionType t when
+            t == ExpressionType.AndAlso || t == ExpressionType.And:
+                return "AND";
+            case ExpressionType t when
+            t == ExpressionType.OrElse || t == ExpressionType.Or:
+                return "OR";
+            case ExpressionType.GreaterThan: return ">";
+            case ExpressionType.GreaterThanOrEqual: return ">=";
+            case ExpressionType.LessThan: return "<";
+            case ExpressionType.LessThanOrEqual: return "<=";
+            default: return string.Empty;
+        }
+    }
+    
+    private string ParseMethodCallExpr(MethodCallExpression me)
+    {        
+        var columnName = $"{ParseMemberExpr(me.Object as MemberExpression)}";
+        var parColumnName = $"@{columnName}_{GetNextIndex()}";
+        object value = CompileExpression(me.Arguments.FirstOrDefault());
+        switch (me.Method.Name)
+        {
+            case "Contains":
+                _parameters.Add(parColumnName.ToString(), value);
+                return ($"UCASE({columnName}) LIKE '%'{concatOperator}UCASE({parColumnName}){concatOperator}'%'");
+            case "StartsWith":
+                _parameters.Add(parColumnName.ToString(), value);
+                return ($"UCASE({columnName}) LIKE UCASE({parColumnName}){concatOperator}'%'");
+            case "EndsWith":
+                _parameters.Add(parColumnName.ToString(), value);
+                return ($"UCASE({columnName}) LIKE '%'{concatOperator}UCASE({parColumnName})");
+            default: throw new Exception($"{me.Method.Name} is not supported");
+        }
+    }
+    private object ParseMemberExpr(MemberExpression me) =>
+        me.Expression.NodeType != ExpressionType.Parameter ?
+        ParseExpr(me.Expression, me.Member.Name) :
+        _buildColumnName(me.Member.Name);
+
+    private object ParseExpr(Expression e, string memberName) =>
+        ParseValue(CompileExpression(e, memberName));
+
+    private object CompileExpression(Expression e, string memberName)
+    {
+        var c = CompileExpression(e);
+        return CompileExpression(Expression.PropertyOrField(Expression.Constant(c), memberName));
+    }
+    private static object CompileExpression(Expression e) => Expression.Lambda(e).Compile().DynamicInvoke();
+
+    private static object ParseConstantExpr(ConstantExpression ce) =>
+        ParseValue(ce.Value);
+    private static object ParseValue(object value)
+    {
+        if (value is null)
+            return "NULL";
+        if (value is string)
+            return value.ToString();
+        return value;
     }
 }
