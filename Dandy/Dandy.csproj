@@ -2,6 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
+    <Authors>RetailItalia srl</Authors>
+    <PackageIconUrl>http://www.retailitaliasrl.it/wp-content/uploads/favicon.png</PackageIconUrl>
+    <RepositoryUrl>https://github.com/RetailItalia/Dandy</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/RetailItalia/Dandy</PackageProjectUrl>
+    <Description>Handy Dapper extension to work with DB2.
+This package provides an enhancement of the Dapper.Contrib's features and some basic query extra-functionalities</Description>
   </PropertyGroup>
 
   <ItemGroup>

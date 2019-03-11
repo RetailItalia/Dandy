@@ -152,6 +152,70 @@ Dandy makes use of some optional attributes:
 * `[Write(true/false)]` -  this property is (not) writeable
 * `[Computed]` - this property is computed and should not be part of updates
 
+Mappings
+----------
+To map the column of a database table to the properties of an entity, it is necessary to provide the mapping using Dapper's mapping extension: `EntityMap<TEntity>`
+
+Entity:
+```csharp
+ public class Article
+{
+    [Key]
+    public int Id { get; set; }        
+    public string Name { get; set; }        
+    public string Description { get; set; }
+}
+```
+
+Mapping:
+```csharp
+public class ArticleMapper : EntityMap<Article>
+{
+    public AliasMapper()
+    {
+        ToTable("ARTICO0F");
+        Map(_ => _.Id).ToColumn("ARTID");
+        Map(_ => _.Name).ToColumn("ARTNAME");
+        Map(_ => _.Description).ToColumn("ARTDESCR");
+    }
+}
+```
+* `[ToTable("Tablename")]` - custom tabke mapping
+* `[Map(_ => _.{field}).ToColumn({column})]` - map a entity field to a specific table column
+
+Pagination
+----------
+The GetAll function support pagination. This is enabled providing the `page` and `pageSize` parameters.
+
+```csharp
+var lekker = await connection.GetAllAsync<Article>(page: 1, pageSize: 2);
+```
+This code returns the first page of the result and each page will contain not more than 2 articles.
+
+Both parameters have 1 as min value.
+
+The `page` parametr is optional, it has its default vaue is 1 (first page);
+
+
+Filtering
+----------
+Dandy provides some basic filtering support based on **LINQ Expression**.
+```Csharp
+var lekker = await connection.GetAllAsync<Article>(filter: a => a.Name == "Oreo Chocolate Cream");
+```
+The framework translates the filtering expression to the SQL WHERE condition.
+
+The supported Expression operations/conditions are: 
+- == 
+- != 
+- &&
+- ||
+- <,>, >=, <=
+- x.Name.Contains("*....*")
+- x.Name.StartsWith(*....*)
+- x.Name.EndsWith(*....*)
+- !(x.Name.Contains("*....*"))
+
 Limitations and caveats
 -------
 

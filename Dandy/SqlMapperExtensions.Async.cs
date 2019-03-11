@@ -179,12 +179,7 @@ namespace Dandy
             pars.Add("top", pageSize.Value);
             pars.Add("skip", ((page ?? 1) - 1) * pageSize.Value);
             return pars;
-        }
-        //new
-        //{
-        //    top = pageSize.Value,
-        //    skip = ((page ?? 1) - 1) * pageSize.Value
-        //};
+        }      
 
         private static async Task<IEnumerable<T>> GetAllAsyncImpl<T>(IDbConnection connection, object parameters, IDbTransaction transaction, int? commandTimeout, string sql, Type type) where T : class
         {
