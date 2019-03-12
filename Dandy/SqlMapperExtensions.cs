@@ -138,7 +138,8 @@ namespace Dandy
                 ["sqliteconnection"] = new SQLiteAdapter(),
                 ["mysqlconnection"] = new MySqlAdapter(),
                 ["fbconnection"] = new FbAdapter(),
-                ["idb2connection"] = new IDB2Adapter()
+                ["idb2connection"] = new IDB2Adapter(),
+                ["db2connection"] = new IDB2Adapter()
             };
         private static readonly Dictionary<Type, SqlMapper.ITypeHandler> TypeHandlerDictionary
             = new Dictionary<Type, SqlMapper.ITypeHandler>
