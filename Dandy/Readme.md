@@ -183,6 +183,8 @@ public class ArticleMapper : EntityMap<Article>
 * `[ToTable("Tablename")]` - custom tabke mapping
 * `[Map(_ => _.{field}).ToColumn({column})]` - map a entity field to a specific table column
 
+Remember to include `SqlMapperExtensions.InitMapping();` as part of the configuraiton of the app. This allows the framework to auto register custom maapprings in the current assembly.
+
 Pagination
 ----------
 The GetAll function support pagination. This is enabled providing the `page` and `pageSize` parameters.
