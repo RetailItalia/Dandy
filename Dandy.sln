@@ -11,6 +11,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{035B
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dandy.Examples", "Dandy.Examples\Dandy.Examples.csproj", "{4121028E-A46B-4E7B-A045-2C2408312362}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dandy.Examples.Core", "Dandy.Examples.Core\Dandy.Examples.Core.csproj", "{5B8E4016-FAC8-4F48-9C2E-B0B0CFE0B96B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -29,12 +31,17 @@ Global
 		{4121028E-A46B-4E7B-A045-2C2408312362}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4121028E-A46B-4E7B-A045-2C2408312362}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4121028E-A46B-4E7B-A045-2C2408312362}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B8E4016-FAC8-4F48-9C2E-B0B0CFE0B96B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B8E4016-FAC8-4F48-9C2E-B0B0CFE0B96B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B8E4016-FAC8-4F48-9C2E-B0B0CFE0B96B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B8E4016-FAC8-4F48-9C2E-B0B0CFE0B96B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{4121028E-A46B-4E7B-A045-2C2408312362} = {035B2C4A-B82D-459C-ABBF-C1A6DD9388BE}
+		{5B8E4016-FAC8-4F48-9C2E-B0B0CFE0B96B} = {035B2C4A-B82D-459C-ABBF-C1A6DD9388BE}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {3CA9E093-622A-4B04-96A1-6CEADBEF60BD}
