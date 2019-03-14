@@ -16,8 +16,7 @@ $projectsToBuild =
     'Dandy.Tests'    
 
 $testsToRun =
-    'Dapper.Tests',
-    'Dapper.Tests.Contrib'
+    'Dapper.Tests'
 
 if ($PullRequestNumber) {
     Write-Host "Building for a pull request (#$PullRequestNumber), skipping packaging." -ForegroundColor Yellow

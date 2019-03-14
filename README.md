@@ -1,5 +1,6 @@
 Dandy  .... ;)
 ===========================================
+[![Nuget](https://img.shields.io/nuget/v/Dandy.svg)](https://www.nuget.org/packages/Dandy/)
 
 Handy Dapper extension to work with DB2.
 
