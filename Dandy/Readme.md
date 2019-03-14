@@ -1,7 +1,7 @@
 Dandy - more extensions for dapper
 ===========================================
 
-[![Nuget](https://img.shields.io/nuget/v/Dandy.svg)](https://www.nuget.org/packages/Dandy/)
+[![Build status](https://ci.appveyor.com/api/projects/status/oxpns9ypa7jbbl9q?svg=true)](https://ci.appveyor.com/project/menalb/dandy) [![Nuget](https://img.shields.io/nuget/v/Dandy.svg)](https://www.nuget.org/packages/Dandy/)
 
 Features
 --------
