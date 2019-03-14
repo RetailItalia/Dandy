@@ -12,11 +12,7 @@ Write-Host "  dotnet --version:" (dotnet --version)
 
 $packageOutputFolder = "$PSScriptRoot\.nupkgs"
 $projectsToBuild =
-    'Dandy',
-    'Dandy.Tests'    
-
-$testsToRun =
-    'Dapper.Tests'
+    'Dandy'
 
 if ($PullRequestNumber) {
     Write-Host "Building for a pull request (#$PullRequestNumber), skipping packaging." -ForegroundColor Yellow
@@ -24,11 +20,11 @@ if ($PullRequestNumber) {
 }
 
 Write-Host "Restoring all projects..." -ForegroundColor "Magenta"
-dotnet restore
+dotnet restore Dandy\Dandy.csproj
 Write-Host "Done restoring." -ForegroundColor "Green"
 
 Write-Host "Building all projects..." -ForegroundColor "Magenta"
-dotnet build -c Release --no-restore /p:CI=true
+dotnet build Dandy\Dandy.csproj -c Release --no-restore /p:CI=true
 Write-Host "Done building." -ForegroundColor "Green"
 
 if ($RunTests) {
