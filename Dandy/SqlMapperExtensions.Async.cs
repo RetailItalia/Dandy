@@ -106,6 +106,7 @@ namespace Dandy
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
         /// <param name="page">[At the moment it only works in DB2] page number (from 1 to ...)</param>
         /// <param name="pageSize">[At the moment it only works in DB2] page size (from 1 to ...)</param>
+        /// /// <param name="filter">lambda expression where condigion</param>
         /// <returns>Entity of T</returns>
         public async static Task<IEnumerable<T>> GetAllAsync<T>(
             this IDbConnection connection,
@@ -129,7 +130,7 @@ namespace Dandy
                 await GetAllAsyncImpl<T>(connection, parameters, transaction, commandTimeout, sql, type);
         }
 
-        private static (string sql, DynamicParameters parameters) BuildSqlGetAll<T>(IDbConnection connection, Expression<Func<T, bool>> filter = null)
+        internal static (string sql, DynamicParameters parameters) BuildSqlGetAll<T>(IDbConnection connection, Expression<Func<T, bool>> filter = null)
         {
             var type = typeof(T);
             var adapter = GetFormatter(connection);

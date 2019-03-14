@@ -881,6 +881,33 @@ namespace Dandy.Tests
 
         }
 
+
+        [Fact]
+        public void GetAllFilteredPaged()
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<User>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new User { Name = "User " + i, Age = i });
+
+            using (var connection = GetOpenConnection())
+            {
+                connection.DeleteAll<User>();
+
+                var total = connection.Insert(users);
+                Assert.Equal(total, numberOfEntities);
+
+                var paginatedUsers =connection.GetAll<User>(filter: x => x.Name.EndsWith("1"), page: 1, pageSize: 2);
+
+                Assert.Single(paginatedUsers);
+                Assert.Contains(paginatedUsers, u => u.Name == "User 1");
+                Assert.DoesNotContain(paginatedUsers, u => u.Name == "User 0");
+                Assert.DoesNotContain(paginatedUsers, u => u.Name == "User 2");
+            }
+        }
+
+
     }
 
 

@@ -377,36 +377,48 @@ namespace Dandy
         /// <param name="connection">Open SqlConnection</param>
         /// <param name="transaction">The transaction to run under, null (the default) if none</param>
         /// <param name="commandTimeout">Number of seconds before command execution timeout</param>
+        /// /// <param name="page">[At the moment it only works in DB2] page number (from 1 to ...)</param>
+        /// <param name="pageSize">[At the moment it only works in DB2] page size (from 1 to ...)</param>
+        /// <param name="filter">lambda expression where condigion</param>
         /// <returns>Entity of T</returns>
-        public static IEnumerable<T> GetAll<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null) where T : class
+        public static IEnumerable<T> GetAll<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null, int? page = null, int? pageSize = null,
+            Expression<Func<T, bool>> filter = null)
+            where T : class
         {
+            System.Diagnostics.Contracts.Contract.Requires((!pageSize.HasValue) || pageSize.HasValue && pageSize >= 0, "pageSize must be a number >= 0");
             var type = typeof(T);
-            var cacheType = typeof(List<T>);
-            var adapter = GetFormatter(connection);
-            var map = GetColumnAliasMap(type);
 
-            if (!GetQueries.TryGetValue(cacheType.TypeHandle, out string sql))
+            //if (!GetQueries.TryGetValue(cacheType.TypeHandle, out string sql))
+            //{
+            //    GetKeys<T>(nameof(GetAll));
+            //    var sbColumnList = new StringBuilder();
+            //    var name = GetTableName(type);
+            //    var allProperties = TypePropertiesCache(type);
+            //    var computed = ComputedPropertiesCache(type);
+
+            //    allProperties.Except(computed).ToList().ForEach(_ =>
+            //    {
+            //        adapter.AppendColumnName(sbColumnList, map.GetColumnName(_));
+
+            //        sbColumnList.Append(",");
+            //    });
+            //    sbColumnList = sbColumnList.Remove(sbColumnList.Length - 1, 1);
+            //    sql = $"select {sbColumnList.ToString()} from {name}";
+            //    GetQueries[cacheType.TypeHandle] = sql;
+            //}
+
+            (string sql, DynamicParameters parameters) = BuildSqlGetAll(connection, filter);
+            if (pageSize.HasValue)
             {
-                GetKeys<T>(nameof(GetAll));
-                var sbColumnList = new StringBuilder();
-                var name = GetTableName(type);
-                var allProperties = TypePropertiesCache(type);
-                var computed = ComputedPropertiesCache(type);
-
-                allProperties.Except(computed).ToList().ForEach(_ =>
-                {
-                    adapter.AppendColumnName(sbColumnList, map.GetColumnName(_));
-
-                    sbColumnList.Append(",");
-                });
-                sbColumnList = sbColumnList.Remove(sbColumnList.Length - 1, 1);
-                sql = $"select {sbColumnList.ToString()} from {name}";
-                GetQueries[cacheType.TypeHandle] = sql;
+                if (parameters == null) parameters = new DynamicParameters();
+                parameters.AddDynamicParams(GetPaginationParameters(pageSize, page));
+                sql = AppendSqlWithPagination(connection, sql);
             }
 
-            if (!type.IsInterface) return connection.Query<T>(sql, null, transaction, commandTimeout: commandTimeout);
 
-            var result = connection.Query(sql);
+            if (!type.IsInterface) return connection.Query<T>(sql, parameters, transaction, commandTimeout: commandTimeout);
+
+            var result = connection.Query(sql, param: parameters);
             var list = new List<T>();
             foreach (IDictionary<string, object> res in result)
             {
@@ -645,7 +657,7 @@ namespace Dandy
             return dictionary;
         }
         public static void InitMapping() => InitMapping(Assembly.GetCallingAssembly());
-        public static void InitMapping( Assembly assembly)
+        public static void InitMapping(Assembly assembly)
         {
             TypeHandlerDictionary.ToList().ForEach(_ => SqlMapper.AddTypeHandler(_.Key, _.Value));
             RegisterAllMap(assembly);
