@@ -6,14 +6,7 @@ branches:
   - master
 image: Visual Studio 2017
 install:
-  # Download .NET Core 2.1 SDK and add to PATH
-  - ps: $urlCurrent = "https://download.microsoft.com/download/2/A/2/2A21B61D-4D08-4E25-AB4A-7B9859300B0C/dotnet-sdk-2.1.100-win-x64.zip"
-  - ps: $env:DOTNET_INSTALL_DIR = "$pwd\.dotnetsdk"
-  - ps: mkdir $env:DOTNET_INSTALL_DIR -Force | Out-Null
-  - ps: $tempFileCurrent = [System.IO.Path]::GetTempFileName()
-  - ps: (New-Object System.Net.WebClient).DownloadFile($urlCurrent, $tempFileCurrent)
-  - ps: Add-Type -AssemblyName System.IO.Compression.FileSystem; [System.IO.Compression.ZipFile]::ExtractToDirectory($tempFileCurrent, $env:DOTNET_INSTALL_DIR)
-  - ps: $env:Path = "$env:DOTNET_INSTALL_DIR;$env:Path"
+  - appveyor DownloadFile https://dist.nuget.org/win-x86-commandline/v4.0.0/nuget.exe
 nuget:
   disable_publish_on_pr: true
 build_script:
