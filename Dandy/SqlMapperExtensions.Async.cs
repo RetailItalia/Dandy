@@ -180,7 +180,7 @@ namespace Dandy
             pars.Add("top", pageSize.Value);
             pars.Add("skip", ((page ?? 1) - 1) * pageSize.Value);
             return pars;
-        }      
+        }
 
         private static async Task<IEnumerable<T>> GetAllAsyncImpl<T>(IDbConnection connection, object parameters, IDbTransaction transaction, int? commandTimeout, string sql, Type type) where T : class
         {
@@ -406,6 +406,7 @@ namespace Dandy
                 throw new ArgumentException("Cannot Delete null Object", nameof(entityToDelete));
 
             var type = typeof(T);
+            var map = GetColumnAliasMap(type);
 
             if (type.IsArray)
             {
@@ -440,7 +441,7 @@ namespace Dandy
             for (var i = 0; i < keyProperties.Count; i++)
             {
                 var property = keyProperties[i];
-                adapter.AppendColumnNameEqualsValue(sb, property.Name);
+                adapter.AppendColumnNameEqualsValue(sb, map.GetColumnName(property), property.Name);
                 if (i < keyProperties.Count - 1)
                     sb.Append(" AND ");
             }
@@ -819,9 +820,9 @@ public class ExpressionBuilder
             default: return string.Empty;
         }
     }
-    
+
     private string ParseMethodCallExpr(MethodCallExpression me)
-    {        
+    {
         var columnName = $"{ParseMemberExpr(me.Object as MemberExpression)}";
         var parColumnName = $"@{columnName}_{GetNextIndex()}";
         object value = CompileExpression(me.Arguments.FirstOrDefault());
