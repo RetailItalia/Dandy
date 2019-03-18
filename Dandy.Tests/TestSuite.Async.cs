@@ -638,6 +638,31 @@ namespace Dandy.Tests
                 Assert.True(deleteResult);
             }
         }
+
+        [Fact]
+        public async Task UpdateAliasAsync()
+        {
+            var myUser = new AliasedField { AField = "John" };
+
+            using (var connection = GetOpenConnection())
+            {
+                connection.DeleteAll<AliasedField>();
+
+                connection.Execute("insert into AliasedFields (Field) values('Adam') ");
+                connection.Execute("insert into AliasedFields (Field) values('John') ");
+                connection.Execute("insert into AliasedFields (Field) values('Paul') ");
+                connection.Execute("insert into AliasedFields (Field) values('Marc') ");
+
+                var john = (await connection
+                  .GetAllAsync<AliasedField>
+                  (filter: x => x.AField == myUser.AField)).Single();
+
+                var deleteResult = await connection.UpdateAsync(new AliasedField { Id = john.Id });
+
+                Assert.True(deleteResult);
+            }
+        }
+
         [Fact]
         public async Task GetAllFilteredItemNotFoundAsync()
         {

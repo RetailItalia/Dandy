@@ -716,7 +716,7 @@ namespace Dandy
             for (var i = 0; i < keyProperties.Count; i++)
             {
                 var property = keyProperties[i];
-                adapter.AppendColumnNameEqualsValue(sb, map.GetColumnName(property));  //fix for issue #336
+                adapter.AppendColumnNameEqualsValue(sb, map.GetColumnName(property), property.Name);  //fix for issue #336
                 if (i < keyProperties.Count - 1)
                     sb.Append(" and ");
             }
