@@ -681,6 +681,7 @@ namespace Dandy
                 throw new ArgumentException("Cannot Delete null Object", nameof(entityToDelete));
 
             var type = typeof(T);
+            var map = GetColumnAliasMap(type);
 
             if (type.IsArray)
             {
@@ -715,7 +716,7 @@ namespace Dandy
             for (var i = 0; i < keyProperties.Count; i++)
             {
                 var property = keyProperties[i];
-                adapter.AppendColumnNameEqualsValue(sb, property.Name);  //fix for issue #336
+                adapter.AppendColumnNameEqualsValue(sb, map.GetColumnName(property));  //fix for issue #336
                 if (i < keyProperties.Count - 1)
                     sb.Append(" and ");
             }
