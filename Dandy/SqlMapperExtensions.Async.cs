@@ -38,7 +38,7 @@ namespace Dandy
                 var computed = ComputedPropertiesCache(type);
                 var sbColumnList = new StringBuilder();
 
-                var pars = key.Select(k => map.GetColumnName(k));
+                //var pars = key.Select(k => map.GetColumnName(k));
 
                 allProperties.Except(computed).ToList().ForEach(_ =>
                 {
@@ -48,10 +48,10 @@ namespace Dandy
                 });
                 sbColumnList = sbColumnList.Remove(sbColumnList.Length - 1, 1);
 
-                sql = $"SELECT {sbColumnList.ToString()} FROM {name} WHERE {BuildWhereCondition(pars)}";
+                sql = $"SELECT {sbColumnList.ToString()} FROM {name} WHERE {BuildWhereCondition(key,map)}";
 
                 GetQueries[type.TypeHandle] = sql;
-                GetParameters[type.TypeHandle] = pars;
+                GetParameters[type.TypeHandle] = key.Select(k => map.GetColumnName(k));
             }
 
             var dynParms = IsASystemType(id)

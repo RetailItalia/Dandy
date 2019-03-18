@@ -245,10 +245,10 @@ namespace Dandy
         internal static IEnumerable<PropertyInfo> GetKeys(Type type) =>
             KeyPropertiesCache(type).Union(ExplicitKeyPropertiesCache(type));
 
-        private static string BuildWhereCondition(IEnumerable<string> pars) =>
+        private static string BuildWhereCondition(IEnumerable<PropertyInfo> pars, IAliasColumnMap map) =>
            pars.Count() == 1 ?
                  $"{pars.First()} = @id" :
-                 pars.Select(p => $"{p} = @{p}")
+                 pars.Select(p => $"{map.GetColumnName(p)} = @{p.Name}")
                         .Aggregate((a, b) => $"{a} AND {b}");
 
         private static DynamicParameters BuildParametersWhereCondition(RuntimeTypeHandle typeHandle, dynamic id) =>
@@ -312,8 +312,6 @@ namespace Dandy
                 var computed = ComputedPropertiesCache(type);
                 var sbColumnList = new StringBuilder();
 
-                var pars = key.Select(k => map.GetColumnName(k));
-
                 allProperties.Except(computed).ToList().ForEach(_ =>
                 {
                     adapter.AppendColumnName(sbColumnList, map.GetColumnName(_));
@@ -322,10 +320,10 @@ namespace Dandy
                 });
                 sbColumnList = sbColumnList.Remove(sbColumnList.Length - 1, 1);
 
-                sql = $"SELECT {sbColumnList.ToString()} FROM {name} WHERE {BuildWhereCondition(pars)}";
+                sql = $"SELECT {sbColumnList.ToString()} FROM {name} WHERE {BuildWhereCondition(key, map)}";
 
                 GetQueries[type.TypeHandle] = sql;
-                GetParameters[type.TypeHandle] = pars;
+                GetParameters[type.TypeHandle] = key.Select(k => k.Name);
             }
 
             var dynParms = BuildParametersWhereCondition(type.TypeHandle, id) as DynamicParameters;
@@ -384,26 +382,7 @@ namespace Dandy
             where T : class
         {
             System.Diagnostics.Contracts.Contract.Requires((!pageSize.HasValue) || pageSize.HasValue && pageSize >= 0, "pageSize must be a number >= 0");
-            var type = typeof(T);
-
-            //if (!GetQueries.TryGetValue(cacheType.TypeHandle, out string sql))
-            //{
-            //    GetKeys<T>(nameof(GetAll));
-            //    var sbColumnList = new StringBuilder();
-            //    var name = GetTableName(type);
-            //    var allProperties = TypePropertiesCache(type);
-            //    var computed = ComputedPropertiesCache(type);
-
-            //    allProperties.Except(computed).ToList().ForEach(_ =>
-            //    {
-            //        adapter.AppendColumnName(sbColumnList, map.GetColumnName(_));
-
-            //        sbColumnList.Append(",");
-            //    });
-            //    sbColumnList = sbColumnList.Remove(sbColumnList.Length - 1, 1);
-            //    sql = $"select {sbColumnList.ToString()} from {name}";
-            //    GetQueries[cacheType.TypeHandle] = sql;
-            //}
+            var type = typeof(T);     
 
             (string sql, DynamicParameters parameters) = BuildSqlGetAll(connection, filter);
             if (pageSize.HasValue)
