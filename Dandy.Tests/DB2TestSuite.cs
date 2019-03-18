@@ -47,6 +47,7 @@ namespace Dandy.Tests
                 void run(string commandText)
                 {
                     var command = connection.CreateCommand();
+
                     command.CommandText = commandText;
                     command.ExecuteNonQuery();
                 }
@@ -85,8 +86,8 @@ namespace Dandy.Tests
                 run("CREATE  TABLE TimeFields (Id INTEGER GENERATED ALWAYS AS IDENTITY not null, TimeValue time )");
                 dropTable("AliasedFields");
                 run("CREATE  TABLE AliasedFields (IdRec INTEGER GENERATED ALWAYS AS IDENTITY not null, Field varchar(50))");
-
-
+                dropTable("VYDEON0F");
+                run("CREATE TABLE VYDEON0F(CPROVYD CHAR(30) DEFAULT ' ' NOT NULL, XPROVYD CHAR(30) DEFAULT ' ' NOT NULL, TDEC DATE DEFAULT '1940-01-01' NOT NULL, TOUT DATE DEFAULT '1940-01-01' NOT NULL, FL01VYD CHAR(1) DEFAULT ' ' NOT NULL, FL02VYD CHAR(1) DEFAULT ' ' NOT NULL, FL03VYD CHAR(1) DEFAULT ' ' NOT NULL, FL04VYD CHAR(1) DEFAULT ' ' NOT NULL, FL05VYD CHAR(1) DEFAULT ' ' NOT NULL, TDATVYD DATE DEFAULT '1940-01-01' NOT NULL, TIMEVYD TIME DEFAULT '00.00.00  ' NOT NULL, NAGR DECIMAL(5, 0) DEFAULT 0 NOT NULL, DAGR DATE DEFAULT '1940-01-01' NOT NULL, TAGR TIME DEFAULT '00.00.00  ' NOT NULL, UAGR CHAR(10) DEFAULT ' ' NOT NULL)");
             }
         }
 

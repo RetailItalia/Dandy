@@ -1,22 +1,20 @@
-﻿using System;
+﻿using Dandy.Mapping;
+using Dapper;
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Collections.Concurrent;
-using System.Reflection.Emit;
-
-using Dapper;
-using System.Threading.Tasks;
 using System.Data.SqlClient;
+using System.Linq;
 using System.Linq.Expressions;
-using Dandy.Mapping;
+using System.Reflection;
+using System.Reflection.Emit;
+using System.Text;
+using System.Threading.Tasks;
 
 #if NETSTANDARD1_3
 using DataException = System.InvalidOperationException;
 #else
-using System.Threading;
 #endif
 
 namespace Dandy
@@ -637,13 +635,14 @@ namespace Dandy
         private static IDictionary<string, object> RemapObject(IEnumerable<PropertyInfo> keyProperties, IEnumerable<PropertyInfo> nonIdProps, object entity)
         {
             IDictionary<string, object> dictionary = new Dictionary<string, object>();
-            var fakeParam = new SqlParameter();
             keyProperties = keyProperties ?? new List<PropertyInfo>();
             nonIdProps = nonIdProps ?? new List<PropertyInfo>();
 
 
             foreach (var property in nonIdProps.Union(keyProperties))
             {
+                var fakeParam = new SqlParameter();
+
                 if (TypeHandlerDictionary.ContainsKey(property.PropertyType))
                     TypeHandlerDictionary[property.PropertyType].SetValue(fakeParam, property.GetValue(entity));
 
@@ -653,6 +652,7 @@ namespace Dandy
                     fakeParam.Value ??
                     d.GetType().GetProperty(property.Name).GetValue(d, null)
                      );
+
             }
             return dictionary;
         }

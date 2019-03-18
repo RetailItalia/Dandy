@@ -1,12 +1,9 @@
-﻿using System;
+﻿using Dandy.Mapping;
+using Dapper;
+using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using System.Reflection;
-using System.Transactions;
-using Dapper;
-using Dandy;
-using Dandy.Mapping;
 using Xunit;
 
 namespace Dandy.Tests
@@ -179,6 +176,44 @@ namespace Dandy.Tests
         public string Name { get; set; }
     }
 
+
+
+
+
+    public class ObjectWithMultipleDates
+    {
+        
+
+        [ExplicitKey]
+        public string Code { get; set; }
+        public string Description { get; set; }
+        public string Spreaded { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public DateTime Tdat { get; set; }
+        public TimeSpan Time { get; set; }
+
+    }
+
+    public class PlanMapper : EntityMap<ObjectWithMultipleDates>
+    {
+        public PlanMapper()
+        {
+            ToTable("VYDEON0F");
+            Map(_ => _.Code).ToColumn("CPROVYD");
+            Map(_ => _.Description).ToColumn("XPROVYD");
+            Map(_ => _.StartDate).ToColumn("TDEC");
+            Map(_ => _.EndDate).ToColumn("TOUT");
+            Map(_ => _.Spreaded).ToColumn("FL01VYD");
+            Map(_ => _.Tdat).ToColumn("TDATVYD");
+            Map(_ => _.Time).ToColumn("TIMEVYD");
+        }
+    }
+
+
+
+
+
     public abstract partial class TestSuite
     {
         public TestSuite()
@@ -198,7 +233,24 @@ namespace Dandy.Tests
             return connection;
         }
 
+        [Fact]
+        public void InsertObjectWithMultipleDates()
+        {
+            using (var connection = GetOpenConnection())
+            {
+                connection.Insert(new ObjectWithMultipleDates() {
+                    Code ="1",
+                    Description="",
+                    EndDate = DateTime.Now.AddDays(1),
+                    StartDate = DateTime.Now,
+                    Spreaded = "N",
+                    Tdat = DateTime.Now,
+                    Time = DateTime.Now.TimeOfDay
+                });
+                Assert.Single(connection.GetAll<ObjectWithMultipleDates>());
 
+            }
+        }
 
         [Fact]
         public void TypeWithGenericParameterCanBeInserted()
@@ -898,7 +950,7 @@ namespace Dandy.Tests
                 var total = connection.Insert(users);
                 Assert.Equal(total, numberOfEntities);
 
-                var paginatedUsers =connection.GetAll<User>(filter: x => x.Name.EndsWith("1"), page: 1, pageSize: 2);
+                var paginatedUsers = connection.GetAll<User>(filter: x => x.Name.EndsWith("1"), page: 1, pageSize: 2);
 
                 Assert.Single(paginatedUsers);
                 Assert.Contains(paginatedUsers, u => u.Name == "User 1");
