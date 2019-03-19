@@ -122,6 +122,27 @@ namespace Dandy.Tests
         }
     }
 
+    [Table("MultipleAliasedFields")]
+    public class MultipleAliasedFields
+    {
+        [ExplicitKey]
+        public int Id { get; set; }
+        [ExplicitKey]
+        public int IdB { get; set; }
+        public string AField { get; set; }
+
+        public class MultipleAliasedFieldsMapper : EntityMap<MultipleAliasedFields>
+        {
+            public MultipleAliasedFieldsMapper()
+            {
+                ToTable("MultipleAliasedFields");
+                Map(_ => _.AField).ToColumn("Field");
+                Map(_ => _.Id).ToColumn("IdARec");
+                Map(_ => _.IdB).ToColumn("IdBRec");
+            }
+        }
+    }
+
     public class Person
     {
         public int Id { get; set; }
@@ -873,15 +894,33 @@ namespace Dandy.Tests
                 var actual = connection.Get<AliasedField>(id);
                 Assert.Equal("Adam", actual.AField);
             }
-
         }
+
+        [Fact]
+        public void InsertGetUpdateMultipleAliasedField()
+        {
+            using (var connection = GetOpenConnection())
+            {
+                var id = new { Id = 123, IdB = 456 };
+                connection.DeleteAll<MultipleAliasedFields>();
+                connection.Insert(new MultipleAliasedFields() {Id=123, IdB=456, AField = "Adam" });
+                var actual = connection.Get<MultipleAliasedFields>(id);
+                Assert.Equal("Adam", actual.AField);
+
+                actual.AField = "Eva";
+                var updated = connection.Update(actual);
+                Assert.True(updated);
+
+                actual = connection.Get<MultipleAliasedFields>(id);
+                Assert.Equal("Eva", actual.AField);
+            }
+        }
+
         [Fact]
         public void InsertGetUpdateAliasedField()
         {
             using (var connection = GetOpenConnection())
-            {
-                SqlMapperExtensions
-                    .RegisterMap<AliasedField>(new AliasedField.AliasMapper());
+            {                
                 connection.DeleteAll<AliasedField>();
                 var id = connection.Insert(new AliasedField() { AField = "Adam" });
                 var actual = connection.Get<AliasedField>(id);
@@ -894,8 +933,8 @@ namespace Dandy.Tests
                 actual = connection.Get<AliasedField>(id);
                 Assert.Equal("Eva", actual.AField);
             }
-
         }
+
         [Fact]
         public async void InsertGetUpdateAliasedFieldAsync()
         {
