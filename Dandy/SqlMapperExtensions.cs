@@ -384,18 +384,18 @@ namespace Dandy
             System.Diagnostics.Contracts.Contract.Requires((!pageSize.HasValue) || pageSize.HasValue && pageSize >= 0, "pageSize must be a number >= 0");
             var type = typeof(T);     
 
-            (string sql, DynamicParameters parameters) = BuildSqlGetAll(connection, filter);
+            var sqlPars = BuildSqlGetAll(connection, filter);
             if (pageSize.HasValue)
             {
-                if (parameters == null) parameters = new DynamicParameters();
-                parameters.AddDynamicParams(GetPaginationParameters(pageSize, page));
-                sql = AppendSqlWithPagination(connection, sql);
+                if (sqlPars.Parameters == null) sqlPars.Parameters = new DynamicParameters();
+                sqlPars.Parameters.AddDynamicParams(GetPaginationParameters(pageSize, page));
+                sqlPars.SQL = AppendSqlWithPagination(connection, sqlPars.SQL);
             }
 
 
-            if (!type.IsInterface) return connection.Query<T>(sql, parameters, transaction, commandTimeout: commandTimeout);
+            if (!type.IsInterface) return connection.Query<T>(sqlPars.SQL, sqlPars.Parameters, transaction, commandTimeout: commandTimeout);
 
-            var result = connection.Query(sql, param: parameters);
+            var result = connection.Query(sqlPars.SQL, param: sqlPars.Parameters);
             var list = new List<T>();
             foreach (IDictionary<string, object> res in result)
             {

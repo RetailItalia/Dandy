@@ -116,21 +116,21 @@ namespace Dandy
         {
             System.Diagnostics.Contracts.Contract.Requires((!pageSize.HasValue) || pageSize.HasValue && pageSize >= 0, "pageSize must be a number >= 0");
             var type = typeof(T);
-            (string sql, DynamicParameters parameters) = BuildSqlGetAll(connection, filter);
+            var sqlPars = BuildSqlGetAll(connection, filter);
 
             if (pageSize.HasValue)
             {
-                if (parameters == null) parameters = new DynamicParameters();
-                parameters.AddDynamicParams(GetPaginationParameters(pageSize, page));
-                sql = AppendSqlWithPagination(connection, sql);
+                if (sqlPars.Parameters == null) sqlPars.Parameters = new DynamicParameters();
+                sqlPars.Parameters.AddDynamicParams(GetPaginationParameters(pageSize, page));
+                sqlPars.SQL = AppendSqlWithPagination(connection, sqlPars.SQL);
             }
 
             return !type.IsInterface ?
-                await connection.QueryAsync<T>(sql, parameters, transaction, commandTimeout) :
-                await GetAllAsyncImpl<T>(connection, parameters, transaction, commandTimeout, sql, type);
+                await connection.QueryAsync<T>(sqlPars.SQL, sqlPars.Parameters, transaction, commandTimeout) :
+                await GetAllAsyncImpl<T>(connection, sqlPars.Parameters, transaction, commandTimeout, sqlPars.SQL, type);
         }
 
-        internal static (string sql, DynamicParameters parameters) BuildSqlGetAll<T>(IDbConnection connection, Expression<Func<T, bool>> filter = null)
+        internal static GetAllSqlAndParameters BuildSqlGetAll<T>(IDbConnection connection, Expression<Func<T, bool>> filter = null)
         {
             var type = typeof(T);
             var adapter = GetFormatter(connection);
@@ -160,9 +160,20 @@ namespace Dandy
             {
                 var where = BuildWhere(filter, _ => map.GetColumnName(type.GetProperty(_)));
                 sql += $" WHERE {where.SQL}";
-                return (sql, where.Parameters);
+                return new GetAllSqlAndParameters(sql, where.Parameters);
             }
-            return (sql, null);
+            return new GetAllSqlAndParameters(sql, null);
+        }
+
+        internal class GetAllSqlAndParameters
+        {
+            public GetAllSqlAndParameters(string sql, DynamicParameters pars)
+            {
+                SQL = sql;
+                Parameters = pars;
+            }
+            public string SQL { get; set; }
+            public DynamicParameters Parameters { get; set; }
         }
 
         public static BuildExpressionResult BuildWhere<T, TResult>(Expression<Func<T, TResult>> expression, Func<string, string> buildColumnName)
