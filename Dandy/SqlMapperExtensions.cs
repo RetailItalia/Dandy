@@ -247,7 +247,7 @@ namespace Dandy
 
         private static string BuildWhereCondition(IEnumerable<PropertyInfo> pars, IAliasColumnMap map) =>
            pars.Count() == 1 ?
-                 $"{pars.First()} = @id" :
+                 $"{map.GetColumnName(pars.First())} = @id" :
                  pars.Select(p => $"{map.GetColumnName(p)} = @{p.Name}")
                         .Aggregate((a, b) => $"{a} AND {b}");
 
