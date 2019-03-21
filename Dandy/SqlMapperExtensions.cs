@@ -302,11 +302,12 @@ namespace Dandy
         {
             var type = typeof(T);
             var map = GetColumnAliasMap(type);
+            var key = GetKeys<T>(nameof(GetAsync));
             var adapter = GetFormatter(connection);
 
             if (!GetQueries.TryGetValue(type.TypeHandle, out string sql))
             {
-                var key = GetKeys<T>(nameof(GetAsync));
+                //var key = GetKeys<T>(nameof(GetAsync));
                 var name = GetTableName(type);
                 var allProperties = TypePropertiesCache(type);
                 var computed = ComputedPropertiesCache(type);
@@ -325,8 +326,10 @@ namespace Dandy
                 GetQueries[type.TypeHandle] = sql;
                 GetParameters[type.TypeHandle] = key.Select(k => k.Name);
             }
-
-            var dynParms = BuildParametersWhereCondition(type.TypeHandle, id) as DynamicParameters;
+            
+            var dynParms = IsASystemType(id)
+                ? BuildParametersWhereCondition(type.TypeHandle, id) as DynamicParameters
+                : BuildParametersWhereCondition(type.TypeHandle, RemapObject(key, null, id)) as DynamicParameters;
 
             T obj;
 
