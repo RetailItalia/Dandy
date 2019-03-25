@@ -449,6 +449,80 @@ namespace Dandy.Tests
             }
         }
 
+        [Fact]
+        public async Task GetAllOrderByAsync()
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<User>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new User { Name = "User " + i, Age = 20 - i });
+
+            using (var connection = GetOpenConnection())
+            {
+                await connection.DeleteAllAsync<User>();
+
+                var total = await connection.InsertAsync(users);
+
+                var dbUsers = (await connection.GetAllAsync<User>(orderBy: new OrderByClause<User>(u => u.Age))).ToList();
+
+                var expected = users.OrderBy(x => x.Age).ToArray();
+                for (var i = 0; i < numberOfEntities; i++)
+                    Assert.True(expected[i].Age == dbUsers[i].Age);
+            }
+        }
+
+        [Fact]
+        public async Task GetAllOrderComplexByAsync()
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<User>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new User { Name = "User " + i, Age = 20 - i });
+
+            using (var connection = GetOpenConnection())
+            {
+                await connection.DeleteAllAsync<User>();
+
+                var total = await connection.InsertAsync(users);
+
+                var dbUsers = (await connection.GetAllAsync<User>(
+                    orderBy: new OrderByClause<User>(u => u.Age).ThenByDesc(u=>u.Name).ThenByAsc(u=>u.Id)
+                    )).ToList();
+
+                var expected = users.OrderBy(x => x.Age).ThenByDescending(x=>x.Name).ThenBy(x=>x.Id).ToArray();
+                for (var i = 0; i < numberOfEntities; i++)
+                    Assert.True(expected[i].Age == dbUsers[i].Age);
+            }
+        }
+
+        [Fact]
+        public async Task GetAllOrderByWithAliasAsync()
+        {
+            var myUser = new AliasedField { AField = "John" };
+
+            using (var connection = GetOpenConnection())
+            {
+                connection.DeleteAll<AliasedField>();
+                var items = new List<AliasedField>();
+                var numberOfEntities = 10;
+                for (var i = 0; i < numberOfEntities; i++)
+                {
+                    items.Add(new AliasedField { Id = i, AField = "Adam " + i });
+                    connection.Execute($"insert into AliasedFields (Field) values('{"Adam " + i}') ");
+                }                
+
+                var dbUsers = (await connection.GetAllAsync<AliasedField>(
+                   orderBy: new OrderByDescClause<AliasedField>(u => u.AField)
+                   )).ToList();
+
+                var expected = items.OrderByDescending(x => x.AField).ToArray();
+                 for (var i = 0; i < numberOfEntities; i++)
+                    Assert.True(expected[i].AField == dbUsers[i].AField);
+            }
+        }
+
         /// <summary>
         /// Test for issue #933
         /// </summary>
@@ -540,7 +614,7 @@ namespace Dandy.Tests
                 Assert.Equal(total, numberOfEntities);
 
                 var articles = await connection.GetAllAsync<Article>(filter: x => x.Name.EndsWith("1"));
-                
+
                 Assert.Contains(articles, u => u.Name == "Article 1");
                 Assert.DoesNotContain(articles, u => u.Name == "Article 0");
                 Assert.DoesNotContain(articles, u => u.Name == "Article 2");

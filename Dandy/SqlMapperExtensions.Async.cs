@@ -48,7 +48,7 @@ namespace Dandy
                 });
                 sbColumnList = sbColumnList.Remove(sbColumnList.Length - 1, 1);
 
-                sql = $"SELECT {sbColumnList.ToString()} FROM {name} WHERE {BuildWhereCondition(key,map)}";
+                sql = $"SELECT {sbColumnList.ToString()} FROM {name} WHERE {BuildWhereCondition(key, map)}";
 
                 GetQueries[type.TypeHandle] = sql;
                 GetParameters[type.TypeHandle] = key.Select(k => map.GetColumnName(k));
@@ -111,12 +111,16 @@ namespace Dandy
         public async static Task<IEnumerable<T>> GetAllAsync<T>(
             this IDbConnection connection,
             IDbTransaction transaction = null, int? commandTimeout = null, int? page = null, int? pageSize = null,
-            Expression<Func<T, bool>> filter = null)
+            Expression<Func<T, bool>> filter = null, params OrderByClause<T>[] orderBy)
             where T : class
         {
             System.Diagnostics.Contracts.Contract.Requires((!pageSize.HasValue) || pageSize.HasValue && pageSize >= 0, "pageSize must be a number >= 0");
             var type = typeof(T);
             var sqlPars = BuildSqlGetAll(connection, filter);
+
+            var map = GetColumnAliasMap(type);
+
+            sqlPars.SQL = AppendOrderBy(sqlPars.SQL, map, orderBy);
 
             if (pageSize.HasValue)
             {
@@ -130,6 +134,15 @@ namespace Dandy
                 await GetAllAsyncImpl<T>(connection, sqlPars.Parameters, transaction, commandTimeout, sqlPars.SQL, type);
         }
 
+        internal static string AppendOrderBy<T>(string sql, IAliasColumnMap map, params OrderByClause<T>[] orderBy)
+        {
+            var type = typeof(T);
+
+            var orderByStr = orderBy != null && orderBy.Any() ?
+                " Order by " + BuildOrderBy(_ => map.GetColumnName(type.GetProperty(_)), orderBy) :
+                string.Empty;
+            return sql + orderByStr;
+        }
         internal static GetAllSqlAndParameters BuildSqlGetAll<T>(IDbConnection connection, Expression<Func<T, bool>> filter = null)
         {
             var type = typeof(T);
@@ -176,10 +189,19 @@ namespace Dandy
             public DynamicParameters Parameters { get; set; }
         }
 
-        public static BuildExpressionResult BuildWhere<T, TResult>(Expression<Func<T, TResult>> expression, Func<string, string> buildColumnName)
+        internal static BuildExpressionResult BuildWhere<T, TResult>(Expression<Func<T, TResult>> expression, Func<string, string> buildColumnName)
         {
             return new ExpressionBuilder(buildColumnName).Build(expression.Body);
         }
+
+        internal static string BuildOrderBy<T>(Func<string, string> buildColumnName, params OrderByClause<T>[] keysSelector)
+        {
+            var expr = new ExpressionBuilder(buildColumnName);
+            return keysSelector
+                .Select(keySelector => $"{expr.BuildOrderByClause(keySelector.KeySelector)} {keySelector.Direction} ")
+                .Aggregate((a, b) => $"{a},{b}");
+        }
+
         private static string AppendSqlWithPagination(IDbConnection connection, string selectSql) =>
         (connection.GetType().Name.Contains("DB2")) ?
         $"{selectSql} LIMIT @top OFFSET @skip" :
@@ -757,6 +779,15 @@ public class ExpressionBuilder
         _buildColumnName = buildColumnName;
     }
 
+    public string BuildOrderByClause(Expression expr) => _buildColumnName(BuildOrderByMember(expr));
+
+    private string BuildOrderByMember(Expression expr) =>
+        (expr is LambdaExpression) ?
+        ((expr as LambdaExpression).Body is UnaryExpression) ?
+        (((expr as LambdaExpression).Body as UnaryExpression).Operand as MemberExpression).Member.Name :
+        ((expr as LambdaExpression).Body as MemberExpression).Member.Name :
+        throw new Exception("Invalid Sort Expression");
+
     public BuildExpressionResult Build(Expression expr) =>
         new BuildExpressionResult(PerformBuild(expr).ToString(), _parameters);
 
@@ -876,4 +907,53 @@ public class ExpressionBuilder
             return value.ToString();
         return value;
     }
+}
+
+public class OrderByAscClause<T> : OrderByClause<T>
+{
+    public OrderByAscClause(Expression<Func<T, object>> keySelector) : base(keySelector, SortDirection.ASC)
+    {
+    }
+}
+public class OrderByDescClause<T> : OrderByClause<T>
+{
+    public OrderByDescClause(Expression<Func<T, object>> keySelector) : base(keySelector, SortDirection.DESC)
+    {
+    }
+}
+public class OrderByClause<T>
+{
+    public OrderByClause(Expression<Func<T, object>> keySelector, SortDirection direction = SortDirection.ASC)
+    {
+        KeySelector = keySelector;
+        Direction = direction;
+    }
+    public Expression<Func<T, object>> KeySelector { get; }
+    public SortDirection Direction { get; }
+}
+
+public static class OrderByClauseBuilder
+{
+    public static OrderByClause<T>[] ThenByAsc<T>(this OrderByClause<T> instance, Expression<Func<T, object>> keySelector) =>
+        instance.ThenBy(keySelector, SortDirection.ASC);
+
+    public static OrderByClause<T>[] ThenByAsc<T>(this OrderByClause<T>[] instance, Expression<Func<T, object>> keySelector) =>
+        instance.ThenBy(keySelector, SortDirection.ASC);
+
+    public static OrderByClause<T>[] ThenByDesc<T>(this OrderByClause<T> instance, Expression<Func<T, object>> keySelector) =>
+        instance.ThenBy(keySelector, SortDirection.DESC);
+    public static OrderByClause<T>[] ThenByDesc<T>(this OrderByClause<T>[] instance, Expression<Func<T, object>> keySelector) =>
+        instance.ThenBy(keySelector, SortDirection.DESC);
+
+    public static OrderByClause<T>[] ThenBy<T>(this OrderByClause<T> instance, Expression<Func<T, object>> keySelector, SortDirection direction) =>
+        new[] { instance, new OrderByClause<T>(keySelector, direction) };
+
+    public static OrderByClause<T>[] ThenBy<T>(this OrderByClause<T>[] instance, Expression<Func<T, object>> keySelector, SortDirection direction) =>
+        instance.Append(new OrderByClause<T>(keySelector, direction)).ToArray();
+}
+
+public enum SortDirection
+{
+    ASC,
+    DESC
 }

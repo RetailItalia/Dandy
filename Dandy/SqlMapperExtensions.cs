@@ -381,13 +381,18 @@ namespace Dandy
         /// <param name="filter">lambda expression where condigion</param>
         /// <returns>Entity of T</returns>
         public static IEnumerable<T> GetAll<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null, int? page = null, int? pageSize = null,
-            Expression<Func<T, bool>> filter = null)
+            Expression<Func<T, bool>> filter = null, params OrderByClause<T>[] orderBy)
             where T : class
         {
             System.Diagnostics.Contracts.Contract.Requires((!pageSize.HasValue) || pageSize.HasValue && pageSize >= 0, "pageSize must be a number >= 0");
             var type = typeof(T);     
 
             var sqlPars = BuildSqlGetAll(connection, filter);
+
+            var map = GetColumnAliasMap(type);
+
+            sqlPars.SQL = AppendOrderBy(sqlPars.SQL, map, orderBy);
+
             if (pageSize.HasValue)
             {
                 if (sqlPars.Parameters == null) sqlPars.Parameters = new DynamicParameters();
