@@ -428,6 +428,13 @@ namespace Dandy
             return list;
         }
 
+        public static int Count<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null,
+          Expression<Func<T, bool>> filter = null)
+          where T : class
+        {
+            var sqlPars = BuildCountExpression(filter);
+            return connection.ExecuteScalar<int>(sqlPars.SQL, sqlPars.Parameters, transaction, commandTimeout: commandTimeout);
+        }
 
         private static string GetTableName(Type type) => GetTableAliasMap(type).GetTableMap();
 

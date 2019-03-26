@@ -169,13 +169,14 @@ namespace Dandy
 
                 GetQueries[cacheType.TypeHandle] = sql;
             }
-            if (filter != null)
-            {
-                var where = BuildWhere(filter, _ => map.GetColumnName(type.GetProperty(_)));
-                sql += $" WHERE {where.SQL}";
-                return new GetAllSqlAndParameters(sql, where.Parameters);
-            }
-            return new GetAllSqlAndParameters(sql, null);
+            return AppendWhere(sql, filter, _ => map.GetColumnName(type.GetProperty(_)));
+            //if (filter != null)
+            //{
+            //    var where = BuildWhere(filter, _ => map.GetColumnName(type.GetProperty(_)));
+            //    sql += $" WHERE {where.SQL}";
+            //    return new GetAllSqlAndParameters(sql, where.Parameters);
+            //}
+            //return new GetAllSqlAndParameters(sql, null);
         }
 
         internal class GetAllSqlAndParameters
@@ -189,7 +190,17 @@ namespace Dandy
             public DynamicParameters Parameters { get; set; }
         }
 
-        internal static BuildExpressionResult BuildWhere<T, TResult>(Expression<Func<T, TResult>> expression, Func<string, string> buildColumnName)
+        internal static GetAllSqlAndParameters AppendWhere<T, TResult>(string initialSql, Expression<Func<T, TResult>> expression, Func<string, string> buildColumnName)
+        {
+            if (expression != null)
+            {
+                var where = BuildWhereClause(expression, buildColumnName);
+                initialSql += $" WHERE {where.SQL}";
+                return new GetAllSqlAndParameters(initialSql, where.Parameters);
+            }
+            return new GetAllSqlAndParameters(initialSql, null);
+        }
+        internal static BuildExpressionResult BuildWhereClause<T, TResult>(Expression<Func<T, TResult>> expression, Func<string, string> buildColumnName)
         {
             return new ExpressionBuilder(buildColumnName).Build(expression.Body);
         }
@@ -241,6 +252,25 @@ namespace Dandy
             }
             return list;
         }
+
+        public static async Task<int> CountAsync<T>(this IDbConnection connection, IDbTransaction transaction = null, int? commandTimeout = null,
+          Expression<Func<T, bool>> filter = null)
+          where T : class
+        {
+            var sqlPars = BuildCountExpression(filter);
+            return await connection.ExecuteScalarAsync<int>(sqlPars.SQL, sqlPars.Parameters, transaction, commandTimeout: commandTimeout);
+        }
+
+        internal static GetAllSqlAndParameters BuildCountExpression<T>(Expression<Func<T, bool>> filter = null)
+            where T : class
+        {
+            var type = typeof(T);
+            var map = GetColumnAliasMap(type);
+            var name = GetTableName(type);
+            return AppendWhere($"{BuildSQLCount()} FROM {name} ", filter, _ => map.GetColumnName(type.GetProperty(_)));
+        }
+
+        internal static string BuildSQLCount() => "SELECT Count(*) as count ";
 
         /// <summary>
         /// Inserts an entity into table "Ts" asynchronously using .NET 4.5 Task and returns identity id.

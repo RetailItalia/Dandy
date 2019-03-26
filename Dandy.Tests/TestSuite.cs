@@ -203,7 +203,7 @@ namespace Dandy.Tests
 
     public class ObjectWithMultipleDates
     {
-        
+
 
         [ExplicitKey]
         public string Code { get; set; }
@@ -259,9 +259,10 @@ namespace Dandy.Tests
         {
             using (var connection = GetOpenConnection())
             {
-                connection.Insert(new ObjectWithMultipleDates() {
-                    Code ="1",
-                    Description="",
+                connection.Insert(new ObjectWithMultipleDates()
+                {
+                    Code = "1",
+                    Description = "",
                     EndDate = DateTime.Now.AddDays(1),
                     StartDate = DateTime.Now,
                     Spreaded = "N",
@@ -709,6 +710,96 @@ namespace Dandy.Tests
             }
         }
 
+        [Fact]
+        public void Count()
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<User>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new User { Name = "User " + i, Age = 20 - i });
+
+            using (var connection = GetOpenConnection())
+            {
+                connection.DeleteAll<User>();
+
+                var total = connection.Insert(users);
+
+                var count = connection.Count<User>();
+
+                Assert.Equal(numberOfEntities, count);
+            }
+        }
+
+        [Fact]
+        public void CountWithFilters()
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<User>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new User { Name = "User " + i, Age = i });
+
+            using (var connection = GetOpenConnection())
+            {
+                connection.DeleteAll<User>();
+
+                var total = connection.Insert(users);
+
+                var count = connection.Count<User>(filter: u => u.Age > 5);
+
+                Assert.Equal(users.Count(u => u.Age > 5), count);
+            }
+        }
+
+        [Fact]
+        public void GetAllOrderBy()
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<User>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new User { Name = "User " + i, Age = 20 - i });
+
+            using (var connection = GetOpenConnection())
+            {
+                connection.DeleteAll<User>();
+
+                var total = connection.Insert(users);
+
+                var dbUsers = connection.GetAll(orderBy: new OrderByClause<User>(u => u.Age)).ToList();
+
+                var expected = users.OrderBy(x => x.Age).ToArray();
+                for (var i = 0; i < numberOfEntities; i++)
+                    Assert.True(expected[i].Age == dbUsers[i].Age);
+            }
+        }
+
+        [Fact]
+        public void GetAllOrderComplexBy()
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<User>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new User { Name = "User " + i, Age = 20 - i });
+
+            using (var connection = GetOpenConnection())
+            {
+                connection.DeleteAll<User>();
+
+                var total = connection.Insert(users);
+
+                var dbUsers = connection.GetAll(
+                    orderBy: new OrderByClause<User>(u => u.Age).ThenByDesc(u => u.Name).ThenByAsc(u => u.Id)
+                    ).ToList();
+
+                var expected = users.OrderBy(x => x.Age).ThenByDescending(x => x.Name).ThenBy(x => x.Id).ToArray();
+                for (var i = 0; i < numberOfEntities; i++)
+                    Assert.True(expected[i].Age == dbUsers[i].Age);
+            }
+        }
+
         /// <summary>
         /// Test for issue #933
         /// </summary>
@@ -903,7 +994,7 @@ namespace Dandy.Tests
             {
                 var id = new { Id = 123, IdB = 456 };
                 connection.DeleteAll<MultipleAliasedFields>();
-                connection.Insert(new MultipleAliasedFields() {Id=123, IdB=456, AField = "Adam" });
+                connection.Insert(new MultipleAliasedFields() { Id = 123, IdB = 456, AField = "Adam" });
                 var actual = connection.Get<MultipleAliasedFields>(id);
                 Assert.Equal("Adam", actual.AField);
 
@@ -920,7 +1011,7 @@ namespace Dandy.Tests
         public void InsertGetUpdateAliasedField()
         {
             using (var connection = GetOpenConnection())
-            {                
+            {
                 connection.DeleteAll<AliasedField>();
                 var id = connection.Insert(new AliasedField() { AField = "Adam" });
                 var actual = connection.Get<AliasedField>(id);

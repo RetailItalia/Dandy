@@ -473,6 +473,48 @@ namespace Dandy.Tests
         }
 
         [Fact]
+        public async Task CountAsync()
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<User>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new User { Name = "User " + i, Age = 20 - i });
+
+            using (var connection = GetOpenConnection())
+            {
+                await connection.DeleteAllAsync<User>();
+
+                var total = await connection.InsertAsync(users);
+
+                var count = await connection.CountAsync<User>();
+
+                Assert.Equal(numberOfEntities, count);
+            }
+        }
+
+        [Fact]
+        public async Task CountWithFiltersAsync()
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<User>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new User { Name = "User " + i, Age = i });
+
+            using (var connection = GetOpenConnection())
+            {
+                await connection.DeleteAllAsync<User>();
+
+                var total = await connection.InsertAsync(users);
+
+                var count = await connection.CountAsync<User>(filter: u => u.Age > 5);
+
+                Assert.Equal(users.Count(u => u.Age > 5), count);
+            }
+        }       
+
+        [Fact]
         public async Task GetAllOrderComplexByAsync()
         {
             const int numberOfEntities = 10;
@@ -488,10 +530,10 @@ namespace Dandy.Tests
                 var total = await connection.InsertAsync(users);
 
                 var dbUsers = (await connection.GetAllAsync<User>(
-                    orderBy: new OrderByClause<User>(u => u.Age).ThenByDesc(u=>u.Name).ThenByAsc(u=>u.Id)
+                    orderBy: new OrderByClause<User>(u => u.Age).ThenByDesc(u => u.Name).ThenByAsc(u => u.Id)
                     )).ToList();
 
-                var expected = users.OrderBy(x => x.Age).ThenByDescending(x=>x.Name).ThenBy(x=>x.Id).ToArray();
+                var expected = users.OrderBy(x => x.Age).ThenByDescending(x => x.Name).ThenBy(x => x.Id).ToArray();
                 for (var i = 0; i < numberOfEntities; i++)
                     Assert.True(expected[i].Age == dbUsers[i].Age);
             }
@@ -511,14 +553,14 @@ namespace Dandy.Tests
                 {
                     items.Add(new AliasedField { Id = i, AField = "Adam " + i });
                     connection.Execute($"insert into AliasedFields (Field) values('{"Adam " + i}') ");
-                }                
+                }
 
                 var dbUsers = (await connection.GetAllAsync<AliasedField>(
                    orderBy: new OrderByDescClause<AliasedField>(u => u.AField)
                    )).ToList();
 
                 var expected = items.OrderByDescending(x => x.AField).ToArray();
-                 for (var i = 0; i < numberOfEntities; i++)
+                for (var i = 0; i < numberOfEntities; i++)
                     Assert.True(expected[i].AField == dbUsers[i].AField);
             }
         }
