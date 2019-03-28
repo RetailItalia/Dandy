@@ -3,6 +3,20 @@ Dandy - more extensions for dapper
 
 [![Build status](https://ci.appveyor.com/api/projects/status/oxpns9ypa7jbbl9q?svg=true)](https://ci.appveyor.com/project/menalb/dandy) [![Nuget](https://img.shields.io/nuget/v/Dandy.svg)](https://www.nuget.org/packages/Dandy/)
 
+* [Introduction](#Fearures)
+* [Mappings](#mappings)
+* [Get](#get-methods)
+* [Filtering](#filtering)
+* [Count](#count)
+* [Sort](#sort)
+* [Pagination](#pagination)
+* [Insert](#insert-methods)
+* [Update](#update-methods)
+* [Delete](#delete-methods)
+* [Special Attributes (table, column, key)](#special-attributes)
+* [Limitaions](#limitations-and-caveats)
+
+
 Features
 --------
 Dandy contains a number of helper methods for inserting, getting,
@@ -13,6 +27,7 @@ The full list of extension methods in Dandy right now are:
 ```csharp
 T Get<T>(id);
 IEnumerable<T> GetAll<T>();
+int Count<T>();
 int Insert<T>(T obj);
 int Insert<T>(Enumerable<T> list);
 bool Update<T>(T obj);
@@ -160,7 +175,7 @@ To map the column of a database table to the properties of an entity, it is nece
 
 Entity:
 ```csharp
- public class Article
+public class Article
 {
     [Key]
     public int Id { get; set; }        
@@ -234,7 +249,7 @@ var howMany = await connection.Count<Article>(a => a.Name == "Oreo Chocolate Cre
 
 Count only the **Oreo Chocolate Cream**
 
-Sorting
+Sort
 ----------
 Sorting is similar to filtering. It is implemented as parameter of the GetAll method. However, instead of providing the lamdba expression directly as parameter, it has to be wrapped into an OrderByClause.
 ```Csharp
