@@ -220,6 +220,58 @@ The supported Expression operations/conditions are:
 - x.Name.EndsWith(*....*)
 - !(x.Name.Contains("*....*"))
 
+Count
+----------
+Count can be used with no parameter, or with a lambda expression
+```Csharp
+var howMany = await connection.Count<Article>()
+```
+Count all the items
+
+```Csharp
+var howMany = await connection.Count<Article>(a => a.Name == "Oreo Chocolate Cream")
+```
+
+Count only the **Oreo Chocolate Cream**
+
+Sorting
+----------
+Sorting is similar to filtering. It is implemented as parameter of the GetAll method. However, instead of providing the lamdba expression directly as parameter, it has to be wrapped into an OrderByClause.
+```Csharp
+var lekkerSorted = await connection.GetAllAsync<Article>(orderBy: new OrderByClause<Article>(a => a.Name));
+```
+By default the sorting is ASCENDING.
+
+To perform other type of sorting, there are a couple of different configurations.
+```Csharp 
+new OrderByClause<Article>(a => a.Name)
+```
+Sort by Name Ascending [`Order By Name`]
+```Csharp 
+new OrderByClause<Article>(a => a.Name, SortDirection.DESC)
+```
+Sort by Name Descending [`Order By Name DESC`]
+```Csharp 
+new OrderByClause<Article>(a => a.Name).ThenBy(a => a.Id)
+```
+Sort by Name Ascending and then by Id Ascending [`Order By Name, Id`]
+```Csharp 
+new OrderByClause<Article>(a => a.Name).ThenBy(a => a.Id, SortDirection.ASC)
+```
+Sort by Name Ascending and then by Id Ascending [`Order By Name, Id`]
+```Csharp 
+new OrderByClause<Article>(a => a.Name).ThenByAsc(a => a.Id)
+```
+Sort by Name Ascending and then by Id Ascending [`Order By Name, Id`]
+```Csharp 
+new OrderByClause<Article>(a => a.Name).ThenByDesc(a => a.Id)
+```
+Sort by Name Ascending and then by Id Descending [`Order By Name, Id DESC`]
+```Csharp
+new OrderByClause<Article>(a => a.Name).ThenByAsc(a => a.Id).ThenByDesc(a => a.Description)
+```
+Sort by Name Ascending, then by Id Ascending, then by Description Descending [`Order By Name, Id, Description Desc`]
+
 Limitations and caveats
 -------
 
