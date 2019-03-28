@@ -14,7 +14,7 @@ Dandy - more extensions for dapper
 * [Update](#update-methods)
 * [Delete](#delete-methods)
 * [Special Attributes (table, column, key)](#special-attributes)
-* [Limitaions](#limitations-and-caveats)
+* [Limitations](#limitations-and-caveats)
 
 
 Features
