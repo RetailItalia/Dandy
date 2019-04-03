@@ -8,7 +8,7 @@
     <PackageProjectUrl>https://github.com/RetailItalia/Dandy</PackageProjectUrl>
     <Description>Handy Dapper extension to work with DB2.
 This package provides an enhancement of the Dapper.Contrib's features and some basic query extra-functionalities</Description>
-    <Version>1.0.1</Version>
+    <Version>1.0.2</Version>
     <AssemblyVersion>1.0.1.1</AssemblyVersion>
     <FileVersion>1.0.1.1</FileVersion>
   </PropertyGroup>
