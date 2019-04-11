@@ -192,7 +192,7 @@ namespace Dandy
 
         internal static GetAllSqlAndParameters AppendWhere<T, TResult>(string initialSql, Expression<Func<T, TResult>> expression, Func<string, string> buildColumnName)
         {
-            if (expression != null)
+            if (expression != null && expression.Body.NodeType != ExpressionType.Constant)            
             {
                 var where = BuildWhereClause(expression, buildColumnName);
                 initialSql += $" WHERE {where.SQL}";
@@ -977,7 +977,7 @@ public static class OrderByClauseBuilder
 
     public static OrderByClause<T>[] ThenBy<T>(this OrderByClause<T> instance, Expression<Func<T, object>> keySelector, SortDirection direction = SortDirection.ASC) =>
         new[] { instance, new OrderByClause<T>(keySelector, direction) };
-    
+
     public static OrderByClause<T>[] ThenBy<T>(this OrderByClause<T>[] instance, Expression<Func<T, object>> keySelector, SortDirection direction = SortDirection.ASC) =>
         instance.Append(new OrderByClause<T>(keySelector, direction)).ToArray();
 }

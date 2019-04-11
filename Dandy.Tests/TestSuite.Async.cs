@@ -512,7 +512,7 @@ namespace Dandy.Tests
 
                 Assert.Equal(users.Count(u => u.Age > 5), count);
             }
-        }       
+        }
 
         [Fact]
         public async Task GetAllOrderComplexByAsync()
@@ -663,6 +663,27 @@ namespace Dandy.Tests
             }
         }
 
+        [Fact]
+        public async Task GetAllFilteredAlwaysTrueExpressionAsync()
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<Article>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new Article { Name = "Article " + i, Id = i, Code = $"C_{i}" });
+
+            using (var connection = GetOpenConnection())
+            {
+                await connection.DeleteAllAsync<Article>().ConfigureAwait(false);
+
+                var total = await connection.InsertAsync(users).ConfigureAwait(false);
+                Assert.Equal(total, numberOfEntities);
+
+                var articles = await connection.GetAllAsync<Article>(filter: x => true);
+
+                Assert.True(articles.Count() == numberOfEntities);                
+            }
+        }
 
         [Fact]
         public async Task GetAllPagedInvalidPageParametersAsync()
