@@ -686,6 +686,28 @@ namespace Dandy.Tests
         }
 
         [Fact]
+        public async Task GetAllFilteredAlwaysFalseExpressionAsync()
+        {
+            const int numberOfEntities = 10;
+
+            var users = new List<Article>();
+            for (var i = 0; i < numberOfEntities; i++)
+                users.Add(new Article { Name = "Article " + i, Id = i, Code = $"C_{i}" });
+
+            using (var connection = GetOpenConnection())
+            {
+                await connection.DeleteAllAsync<Article>().ConfigureAwait(false);
+
+                var total = await connection.InsertAsync(users).ConfigureAwait(false);
+                Assert.Equal(total, numberOfEntities);
+
+                var articles = await connection.GetAllAsync<Article>(filter: x => false);
+
+                Assert.True(articles.Count() == numberOfEntities);
+            }
+        }
+
+        [Fact]
         public async Task GetAllPagedInvalidPageParametersAsync()
         {
             const int numberOfEntities = 10;
