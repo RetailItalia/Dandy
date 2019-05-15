@@ -978,8 +978,12 @@ public static class OrderByClauseBuilder
     public static OrderByClause<T>[] ThenBy<T>(this OrderByClause<T> instance, Expression<Func<T, object>> keySelector, SortDirection direction = SortDirection.ASC) =>
         new[] { instance, new OrderByClause<T>(keySelector, direction) };
 
-    public static OrderByClause<T>[] ThenBy<T>(this OrderByClause<T>[] instance, Expression<Func<T, object>> keySelector, SortDirection direction = SortDirection.ASC) =>
-        instance.Append(new OrderByClause<T>(keySelector, direction)).ToArray();
+    public static OrderByClause<T>[] ThenBy<T>(this OrderByClause<T>[] instance, Expression<Func<T, object>> keySelector, SortDirection direction = SortDirection.ASC)
+    {
+        instance.ToList().Add(new OrderByClause<T>(keySelector, direction));
+        return instance.ToArray();
+    }
+        
 }
 
 public enum SortDirection

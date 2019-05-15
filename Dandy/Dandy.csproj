@@ -1,7 +1,7 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworks>net451;netstandard2.0</TargetFrameworks>
     <Authors>RetailItalia srl</Authors>
     <PackageIconUrl>http://www.retailitaliasrl.it/wp-content/uploads/favicon.png</PackageIconUrl>
     <RepositoryUrl>https://github.com/RetailItalia/Dandy</RepositoryUrl>
