@@ -326,7 +326,7 @@ namespace Dandy
                 GetQueries[type.TypeHandle] = sql;
                 GetParameters[type.TypeHandle] = key.Select(k => k.Name);
             }
-            
+
             var dynParms = IsASystemType(id)
                 ? BuildParametersWhereCondition(type.TypeHandle, id) as DynamicParameters
                 : BuildParametersWhereCondition(type.TypeHandle, RemapObject(key, null, id)) as DynamicParameters;
@@ -385,7 +385,7 @@ namespace Dandy
             where T : class
         {
             System.Diagnostics.Contracts.Contract.Requires((!pageSize.HasValue) || pageSize.HasValue && pageSize >= 0, "pageSize must be a number >= 0");
-            var type = typeof(T);     
+            var type = typeof(T);
 
             var sqlPars = BuildSqlGetAll(connection, filter);
 
@@ -650,6 +650,17 @@ namespace Dandy
             }
             return dictionary;
         }
+
+        private static object mapValue(object value, Type type)
+        {
+            var fakeParam = new SqlParameter();
+
+            if (TypeHandlerDictionary.ContainsKey(type))
+                TypeHandlerDictionary[type].SetValue(fakeParam, value);
+
+            return fakeParam.Value ?? value;
+        }
+
         public static void InitMapping() => InitMapping(Assembly.GetCallingAssembly());
         public static void InitMapping(Assembly assembly)
         {

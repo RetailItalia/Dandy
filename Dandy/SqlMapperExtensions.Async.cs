@@ -192,17 +192,18 @@ namespace Dandy
 
         internal static GetAllSqlAndParameters AppendWhere<T, TResult>(string initialSql, Expression<Func<T, TResult>> expression, Func<string, string> buildColumnName)
         {
-            if (expression != null && expression.Body.NodeType != ExpressionType.Constant)            
+            if (expression != null && expression.Body.NodeType != ExpressionType.Constant)
             {
                 var where = BuildWhereClause(expression, buildColumnName);
                 initialSql += $" WHERE {where.SQL}";
+
                 return new GetAllSqlAndParameters(initialSql, where.Parameters);
             }
             return new GetAllSqlAndParameters(initialSql, null);
         }
         internal static BuildExpressionResult BuildWhereClause<T, TResult>(Expression<Func<T, TResult>> expression, Func<string, string> buildColumnName)
         {
-            return new ExpressionBuilder(buildColumnName).Build(expression.Body);
+            return new ExpressionBuilder(buildColumnName, (x, t) => mapValue(x, t)).Build(expression.Body);
         }
 
         internal static string BuildOrderBy<T>(Func<string, string> buildColumnName, params OrderByClause<T>[] keysSelector)
@@ -804,9 +805,11 @@ public class ExpressionBuilder
     private int GetNextIndex() => _index++;
 
     private readonly Func<string, string> _buildColumnName;
-    public ExpressionBuilder(Func<string, string> buildColumnName)
+    private readonly Func<object, Type, object> _parametersMapper;
+    public ExpressionBuilder(Func<string, string> buildColumnName, Func<object, Type, object> parametersMapper = null)
     {
         _buildColumnName = buildColumnName;
+        _parametersMapper = parametersMapper;
     }
 
     public string BuildOrderByClause(Expression expr) => _buildColumnName(BuildOrderByMember(expr));
@@ -829,7 +832,7 @@ public class ExpressionBuilder
                 return ParseMethodCallExpr(mce);
             case MemberExpression me:
                 var val = ParseMemberExpr(me);
-                return (val.ToString());
+                return (val);
             case ConstantExpression ce:
                 return ParseConstantExpr(ce);
             case UnaryExpression ue:
@@ -854,17 +857,17 @@ public class ExpressionBuilder
         var y = PerformBuild(be.Right);
 
         if (IsValue(be.Left))
-            return AddParameter(y.ToString(), x, GetOperator(be));
+            return AddParameter(y.ToString(), x, GetOperator(be), be.Right.Type);
         if (IsValue(be.Right))
-            return AddParameter(x.ToString(), y, GetOperator(be));
+            return AddParameter(x.ToString(), y, GetOperator(be), be.Left.Type);
 
         return $"{x} {GetOperator(be)} {y}";
     }
 
-    private string AddParameter(string left, object right, string operatorName)
+    private string AddParameter(string left, object right, string operatorName, Type parType)
     {
         var columnName = $"@{left}_{GetNextIndex()}";
-        _parameters.Add(columnName, right);
+        _parameters.Add(columnName, _parametersMapper != null ? _parametersMapper(right, parType) : right);
         return $"{left} {operatorName} {columnName}";
     }
 
@@ -983,7 +986,7 @@ public static class OrderByClauseBuilder
         instance.ToList().Add(new OrderByClause<T>(keySelector, direction));
         return instance.ToArray();
     }
-        
+
 }
 
 public enum SortDirection
