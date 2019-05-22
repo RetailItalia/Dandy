@@ -20,5 +20,5 @@ build_script:
   - ps: .\build.ps1 -CreatePackages $true
 test: off
 artifacts:
-- path: .\dandy\.nupkgs\*.nupkg
+- path: '*.nupkg'
   name: NuGet
