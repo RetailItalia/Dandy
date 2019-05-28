@@ -42,8 +42,7 @@
       <HintPath>..\packages\Dapper.SqlBuilder.1.60.1\lib\net451\Dapper.SqlBuilder.dll</HintPath>
     </Reference>
     <Reference Include="IBM.Data.DB2.iSeries, Version=12.0.0.0, Culture=neutral, PublicKeyToken=9cdb2ebfb1f93a26, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>..\..\..\..\..\..\Program Files (x86)\IBM\Client Access\IBM.Data.DB2.iSeries.dll</HintPath>
+      <HintPath>..\packages\IBM.Data.DB2.iSeries.7.1.0\lib\IBM.Data.DB2.iSeries.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
