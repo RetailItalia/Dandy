@@ -9,12 +9,12 @@ namespace Dandy.Examples
     class Program
     {
         private const string DBConnectionString = "db connection string";
-        static async Task Main(string[] args)
+        static void Main(string[] args)
         {
-            await GetAll();
-            await WithFilter();
-            await WithMapping();
-            await WithPagination();
+            GetAll().GetAwaiter().GetResult();
+            WithFilter().GetAwaiter().GetResult();
+            WithMapping().GetAwaiter().GetResult();
+            WithPagination().GetAwaiter().GetResult();
         }
 
         private static async Task GetAll()
